@@ -4,8 +4,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#define COLONNE 10
-#define RIGHE 10
+#define COLUMNS 10
+#define ROWS 10
 #define N_ROUND_MAX 10
 #define PERC_O 0.5
 #define PERC_X (1-PERC_O)
@@ -14,12 +14,12 @@
 
 typedef struct{
     //Salvo numero riga inizio e numero riga fine
-    int inizio_sottomat;
-    int fine_sottomat;
+    int inizio_submatrix;
+    int fine_submatrix;
 
-    char *sottomat;
+    char *submatrix;
 
-    
+
 
     int *scounts_scatter;
     int *displ_scatter;
@@ -28,18 +28,36 @@ typedef struct{
     int *displ_gather;
 
 
-} Info_sottomat;
+} Info_submatrix;
+
+struct info_cellpositions{
+
+    char *unsatisfied; 
+    int *freeslots;
+    int nfreeslots;
+
+}; 
 
 
-void costruisci_matrice(char* mat);
-void stampa_matrice(char *i_mat);
-void distribuisci_matrice(Info_sottomat t_mat, int numproc);
+int calc_firstangle(Info_submatrix mat);
+int calc_secondangle(Info_submatrix mat);
+int calc_thirdangle(Info_submatrix mat, int);
+int calc_fourthangle(Info_submatrix mat, int);
+int calc_Ledge(Info_submatrix mat, int);
+int calc_Redge(Info_submatrix mat, int);
+int calc_Aedge(Info_submatrix mat, int);
+int calc_Bedge(Info_submatrix mat, int);
+int calc_center(Info_submatrix mat, int); 
+void create_matrix(char* mat);
+void print_matrix(char *i_mat);
+void distribute_matrix(Info_submatrix t_mat, int numproc);
+int calculate_satisfaction(Info_submatrix t_mat, int myrank, int numproc);
 
 int main(int argc, char *argv[]){
 	
-	int numproc, myrank, source, *arr, i, valore, round=N_ROUND_MAX, satisfied=0;
+	int numproc, myrank, source, *arr, i, value, round=1, satisfied=0;
     double start, end;
-    Info_sottomat t_mat;
+    Info_submatrix t_mat;
     
     char *mat;
 	srand(time(NULL)+myrank);
@@ -55,32 +73,32 @@ int main(int argc, char *argv[]){
     t_mat.displ_scatter = (int *)malloc(sizeof(int)*numproc);
     t_mat.displ_gather = (int *)malloc(sizeof(int)*numproc);
 
-    if(numproc<=RIGHE){
+    if(numproc<=ROWS){
         if(myrank == 0){
             int val=1;
-            mat = (char *)malloc(RIGHE * COLONNE * sizeof(char));
-            costruisci_matrice(mat);
+            mat = (char *)malloc(ROWS * COLUMNS * sizeof(char));
+            create_matrix(mat);
             printf("MATRICE INIZIALE\n"); val++;
-            stampa_matrice(mat);
+            print_matrix(mat);
             printf("\n\n");
         }
 
-        distribuisci_matrice(t_mat, numproc);
-        t_mat.sottomat = (char *)malloc(sizeof(char)*t_mat.scounts_scatter[myrank]);
+        distribute_matrix(t_mat, numproc);
+        t_mat.submatrix = (char *)malloc(sizeof(char)*t_mat.scounts_scatter[myrank]);
 
         
         
-        MPI_Scatterv(mat, t_mat.scounts_scatter, t_mat.displ_scatter, MPI_CHAR, t_mat.sottomat, t_mat.scounts_scatter[myrank], MPI_CHAR, 0, MPI_COMM_WORLD);
+        MPI_Scatterv(mat, t_mat.scounts_scatter, t_mat.displ_scatter, MPI_CHAR, t_mat.submatrix, t_mat.scounts_scatter[myrank], MPI_CHAR, 0, MPI_COMM_WORLD);
         MPI_Barrier(MPI_COMM_WORLD);
         start = MPI_Wtime();
 
-        while(satisfied!=100 || round!=0){
+        while(round<N_ROUND_MAX){
+
+            if((satisfied = calculate_satisfaction(t_mat, myrank, numproc))==100) break;
 
 
 
-
-
-            round--;
+            round++;
         }
 
 
@@ -89,8 +107,8 @@ int main(int argc, char *argv[]){
 
 
 	}else{
-        //aggiungere controllo se numproc>RIGHE
-        printf("numproc>RIGHE... Ripetere");
+        //aggiungere controllo se numproc>ROWS
+        printf("numproc>ROWS... Ripetere");
     }
 	
 	 
@@ -101,16 +119,229 @@ int main(int argc, char *argv[]){
 	return 0;
 }
 
+int calculate_satisfaction(Info_submatrix t_mat, int myrank, int numproc){
 
-void costruisci_matrice(char* mat){
+    int i=0, local_satisfied=0, global_satisfied=0, end_submatrix=0;
+    char *unsatisfied = (char *)malloc(sizeof(char)*t_mat.scounts_gather[myrank]); 
+    int *freeslots = (int *)calloc(t_mat.scounts_gather[myrank], sizeof(int)), nfreeslots=0;
 
-    int i=0, val_rand=0, E = (RIGHE*COLONNE*PERC_E);
-    int O = (RIGHE*COLONNE-E)*PERC_O, X = (RIGHE*COLONNE-E)*PERC_X;
-    if(RIGHE*COLONNE != (O+E+X)) E+=(RIGHE*COLONNE)-(O+E+X);
+    i = (myrank!=0) ? COLUMNS : 0;
+    end_submatrix = (myrank==(numproc-1)) ? t_mat.scounts_scatter[myrank] : (t_mat.scounts_scatter[myrank]-COLUMNS);
+
+    if(myrank==0){
+
+        for(i=0; i<(t_mat.scounts_scatter[myrank]-COLUMNS);i++){
+            if(t_mat.submatrix[i]!=' '){
+                if(i==0) local_satisfied += calc_firstangle(t_mat, unsatisfied, freeslots, nfreeslots);
+                else if(i==(COLUMNS-1)) local_satisfied += calc_secondangle(t_mat, unsatisfied, freeslots, nfreeslots);
+                else if(i%COLUMNS==0) local_satisfied += calc_Ledge(t_mat, i, unsatisfied, freeslots, nfreeslots);
+                else if(i%COLUMNS==(COLUMNS-1)) local_satisfied += calc_Redge(t_mat, i, unsatisfied, freeslots, nfreeslots);
+                else if(i>0 && i<COLUMNS) local_satisfied += calc_Aedge(t_mat, i, unsatisfied, freeslots, nfreeslots);
+                else local_satisfied += calc_center(t_mat, i, unsatisfied, freeslots, nfreeslots);
+            }
+            else{
+                freeslots[nfreeslots]=i;
+                nfreeslots++;
+            }
+        }
+
+    }else if(myrank==(numproc-1)){
+
+        for(i=COLUMNS; i<t_mat.scounts_scatter[myrank];i++){
+            if(t_mat.submatrix[i]!=' '){
+                if(i%COLUMNS==0) local_satisfied += calc_Ledge(t_mat, i, unsatisfied, freeslots, nfreeslots);
+                else if(i%COLUMNS==(COLUMNS-1)) local_satisfied += calc_Redge(t_mat, i, unsatisfied, freeslots, nfreeslots);
+                else if(i>(t_mat.scounts_scatter[myrank]-COLUMNS+1) && i<(t_mat.scounts_scatter[myrank]-1)) local_satisfied += calc_Bedge(t_mat, i, unsatisfied, freeslots, nfreeslots);
+                else if(i==(t_mat.scounts_scatter[myrank]-COLUMNS+1)) local_satisfied += calc_thirdangle(t_mat, myrank, unsatisfied, freeslots, nfreeslots);
+                else if(i==(t_mat.scounts_scatter[myrank]-1)) local_satisfied += calc_fourthangle(t_mat, myrank, unsatisfied, freeslots, nfreeslots);
+                else local_satisfied += calc_center(t_mat, i, unsatisfied, freeslots, nfreeslots);
+            }
+            else{
+                freeslots[nfreeslots]=i;
+                nfreeslots++;
+            }
+        }
+
+    }else{
+        
+        for(i=COLUMNS; i<t_mat.scounts_scatter[myrank];i++){
+            if(t_mat.submatrix[i]!=' '){
+                if(i%COLUMNS==0) local_satisfied += calc_Ledge(t_mat, i, unsatisfied, freeslots, nfreeslots);
+                else if(i%COLUMNS==(COLUMNS-1)) local_satisfied += calc_Redge(t_mat, i, unsatisfied, freeslots, nfreeslots);
+                else local_satisfied += calc_center(t_mat, i, *unsatisfied, *freeslots, nfreeslots);
+            }
+            else{
+                freeslots[nfreeslots]=i;
+                nfreeslots++;
+            }
+        }
+
+    }
+
+    MPI_Allreduce(&local_satisfied, &global_satisfied, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+
+    return global_satisfied;
+}
+
+int calc_firstangle(Info_submatrix mat, char *unsatisfied, int *freeslots, int nfreeslots){
+    float similarity = PERC_SIM*3;
+    int similar_cells=0;
+    if(mat.submatrix[0]==mat.submatrix[1]) similar_cells++;
+    if(mat.submatrix[0]==mat.submatrix[COLUMNS]) similar_cells++;
+    if(mat.submatrix[0]==mat.submatrix[COLUMNS+1]) similar_cells++;
+    if(similar_cells<similarity){
+        unsatisfied[nfreeslots]=mat.submatrix[0];
+        freeslots[nfreeslots]=0;
+        nfreeslots++;
+        mat.submatrix[0]=' ';
+    }
+    return (similar_cells>=similarity);
+}
+
+int calc_secondangle(Info_submatrix mat, char *unsatisfied, int *freeslots, int nfreeslots){
+    float similarity = PERC_SIM*3;
+    int similar_cells=0;
+    if(mat.submatrix[COLUMNS-1]==mat.submatrix[COLUMNS-2]) similar_cells++;
+    if(mat.submatrix[COLUMNS-1]==mat.submatrix[(COLUMNS*2)-1]) similar_cells++;
+    if(mat.submatrix[COLUMNS-1]==mat.submatrix[(COLUMNS*2)-2]) similar_cells++;
+    if(similar_cells<similarity){
+        unsatisfied[nfreeslots]=mat.submatrix[COLUMNS-1];
+        freeslots[nfreeslots]=COLUMNS-1;
+        nfreeslots++;
+        mat.submatrix[COLUMNS-1]=' ';
+    }
+    return (similar_cells>=similarity);
+}
+
+int calc_thirdangle(Info_submatrix mat, int myrank, char *unsatisfied, int *freeslots, int nfreeslots){
+    float similarity = PERC_SIM*3;
+    int similar_cells=0;
+    if(mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+1]==mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+2]) similar_cells++;
+    if(mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+1]==mat.submatrix[mat.scounts_scatter[myrank]-(COLUMNS*2)+1]) similar_cells++;
+    if(mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+1]==mat.submatrix[mat.scounts_scatter[myrank]-(COLUMNS*2)+2]) similar_cells++;
+    if(similar_cells<similarity){
+        unsatisfied[nfreeslots]=mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+1];
+        freeslots[nfreeslots]=mat.scounts_scatter[myrank]-COLUMNS+1;
+        nfreeslots++;
+        mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+1]=' ';
+    }
+    return (similar_cells>=similarity);
+}
+
+int calc_fourthangle(Info_submatrix mat, int myrank, char *unsatisfied, int *freeslots, int nfreeslots){
+    float similarity = PERC_SIM*3;
+    int similar_cells=0;
+    if(mat.submatrix[mat.scounts_scatter[myrank]-1]==mat.submatrix[mat.scounts_scatter[myrank]-2]) similar_cells++;
+    if(mat.submatrix[mat.scounts_scatter[myrank]-1]==mat.submatrix[mat.scounts_scatter[myrank]-1-COLUMNS]) similar_cells++;
+    if(mat.submatrix[mat.scounts_scatter[myrank]-1]==mat.submatrix[mat.scounts_scatter[myrank]-2-COLUMNS]) similar_cells++;
+    if(similar_cells<similarity){
+        unsatisfied[nfreeslots]=mat.submatrix[mat.scounts_scatter[myrank]-1];
+        freeslots[nfreeslots]=mat.scounts_scatter[myrank]-1;
+        nfreeslots++;
+        mat.submatrix[mat.scounts_scatter[myrank]-1]=' ';
+    }
+    return (similar_cells>=similarity);
+}
+
+int calc_Ledge(Info_submatrix mat, int index, char *unsatisfied, int *freeslots, int nfreeslots){
+    float similarity = PERC_SIM*5;
+    int similar_cells=0;
+    if(mat.submatrix[index]==mat.submatrix[index+1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+COLUMNS]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+COLUMNS+1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index-COLUMNS]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index-COLUMNS+1]) similar_cells++;
+    if(similar_cells<similarity){
+        unsatisfied[nfreeslots]=mat.submatrix[index];
+        freeslots[nfreeslots]=index;
+        nfreeslots++;
+        mat.submatrix[index]=' ';
+    }
+    return (similar_cells>=similarity);
+}
+
+int calc_Redge(Info_submatrix mat, int index, char *unsatisfied, int *freeslots, int nfreeslots){
+    float similarity = PERC_SIM*5;
+    int similar_cells=0;
+    if(mat.submatrix[index]==mat.submatrix[index-1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+COLUMNS]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+COLUMNS-1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index-COLUMNS]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index-COLUMNS-1]) similar_cells++;
+    if(similar_cells<similarity){
+        unsatisfied[nfreeslots]=mat.submatrix[index];
+        freeslots[nfreeslots]=index;
+        nfreeslots++;
+        mat.submatrix[index]=' ';
+    }
+    return (similar_cells>=similarity);
+}
+
+int calc_Aedge(Info_submatrix mat, int index, char *unsatisfied, int *freeslots, int nfreeslots){
+    float similarity = PERC_SIM*5;
+    int similar_cells=0;
+    if(mat.submatrix[index]==mat.submatrix[index-1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+COLUMNS]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+COLUMNS-1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+COLUMNS+1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+1]) similar_cells++;
+    if(similar_cells<similarity){
+        unsatisfied[nfreeslots]=mat.submatrix[index];
+        freeslots[nfreeslots]=index;
+        nfreeslots++;
+        mat.submatrix[index]=' ';
+    }
+    return (similar_cells>=similarity);
+}
+
+int calc_Bedge(Info_submatrix mat, int index, char *unsatisfied, int *freeslots, int nfreeslots){
+    float similarity = PERC_SIM*5;
+    int similar_cells=0;
+    if(mat.submatrix[index]==mat.submatrix[index-1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index-COLUMNS]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index-COLUMNS-1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index-COLUMNS+1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+1]) similar_cells++;
+    if(similar_cells<similarity){
+        unsatisfied[nfreeslots]=mat.submatrix[index];
+        freeslots[nfreeslots]=index;
+        nfreeslots++;
+        mat.submatrix[index]=' ';
+    }
+    return (similar_cells>=similarity);
+}
+
+int calc_center(Info_submatrix mat, int index, char *unsatisfied, int *freeslots, int nfreeslots){
+    float similarity = PERC_SIM*8;
+    int similar_cells=0;
+    if(mat.submatrix[index]==mat.submatrix[index-1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+COLUMNS]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index-COLUMNS]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index-COLUMNS-1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index-COLUMNS+1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+COLUMNS-1]) similar_cells++;
+    if(mat.submatrix[index]==mat.submatrix[index+COLUMNS+1]) similar_cells++;
+    if(similar_cells<similarity){
+        unsatisfied[nfreeslots]=mat.submatrix[index];
+        freeslots[nfreeslots]=index;
+        nfreeslots++;
+        mat.submatrix[index]=' ';
+    }
+    return (similar_cells>=similarity);
+}
+
+
+void create_matrix(char* mat){
+
+    int i=0, val_rand=0, E = (ROWS*COLUMNS*PERC_E);
+    int O = (ROWS*COLUMNS-E)*PERC_O, X = (ROWS*COLUMNS-E)*PERC_X;
+    if(ROWS*COLUMNS != (O+E+X)) E+=(ROWS*COLUMNS)-(O+E+X);
 
     printf("\nPRIMA\nO:%d - X:%d - E:%d\n", O, X, E);
 
-    for(; i<RIGHE*COLONNE; i++){
+    for(; i<ROWS*COLUMNS; i++){
         val_rand=rand()%3;
         if(val_rand==0 && O>0){
             mat[i] = 'O';
@@ -139,10 +370,10 @@ void costruisci_matrice(char* mat){
 
 }
 
-void stampa_matrice(char *mat) {
+void print_matrix(char *mat) {
 
     printf("\n");
-    for (int i = 0; i < (RIGHE * COLONNE); i++) {
+    for (int i = 0; i < (ROWS * COLUMNS); i++) {
         printf("|");
         switch (mat[i])
         {
@@ -157,58 +388,61 @@ void stampa_matrice(char *mat) {
             break;
         }
         
-        if (((i + 1) % (COLONNE) == 0) && (i != 0))
+        if (((i + 1) % (COLUMNS) == 0) && (i != 0))
             printf("|\n");
-        if ((RIGHE * COLONNE) == 1)
+        if ((ROWS * COLUMNS) == 1)
             printf("|\n");
-        if (COLONNE == 1 && i == 0)
+        if (COLUMNS == 1 && i == 0)
             printf("|\n");
     }
     printf("\n");
 }
 
-void distribuisci_matrice(Info_sottomat t_mat, int numproc){
+void distribute_matrix(Info_submatrix t_mat, int numproc){
 
         if(numproc>1){
 
-            int taglia_t_intero = RIGHE / numproc;
-            int taglia_t_resto = RIGHE % numproc;
+            int size_r_int = ROWS / numproc;
+            int size_r_rest = ROWS % numproc;
 
             for(int i=0;i<numproc;i++){
 
-                if(i<taglia_t_resto) t_mat.scounts_scatter[i] = t_mat.scounts_gather[i] = (taglia_t_intero+1) * COLONNE;
-                else t_mat.scounts_scatter[i] = taglia_t_intero * COLONNE;
+                if(i<size_r_rest) t_mat.scounts_scatter[i] = t_mat.scounts_gather[i] = (size_r_int+1) * COLUMNS;
+                else t_mat.scounts_scatter[i] = size_r_int * COLUMNS;
                 
 
                 if(i==0){
 
-                    t_mat.scounts_scatter[i] += COLONNE;
+                    t_mat.scounts_scatter[i] += COLUMNS;
                     t_mat.displ_scatter[i] = 0;
 
                 }else if(i==(numproc-1)){
 
-                    t_mat.scounts_scatter[i] += COLONNE;
-                    t_mat.displ_scatter[i] = RIGHE*COLONNE - t_mat.scounts_scatter[i];
+                    t_mat.scounts_scatter[i] += COLUMNS;
+                    t_mat.displ_scatter[i] = ROWS*COLUMNS - t_mat.scounts_scatter[i];
 
                 }else{
 
-                    t_mat.scounts_scatter[i] += COLONNE*2;
-                    t_mat.displ_scatter[i] = t_mat.displ_scatter[i-1] + t_mat.scounts_scatter[i-1] - COLONNE*2;
+                    t_mat.scounts_scatter[i] += COLUMNS*2;
+                    t_mat.displ_scatter[i] = t_mat.displ_scatter[i-1] + t_mat.scounts_scatter[i-1] - COLUMNS*2;
 
                 }
 
 
                 t_mat.displ_gather[i] = i==0 ? 0 : t_mat.displ_gather[i-1] + t_mat.scounts_gather[i-1];
-                t_mat.inizio_sottomat = i==0 ? 0 : t_mat.displ_gather[i];
-                t_mat.fine_sottomat = (t_mat.displ_gather[i]+t_mat.scounts_gather[i])/COLONNE;
+                
+                //??????????????????????????????????
+                t_mat.inizio_submatrix = i==0 ? 0 : t_mat.displ_gather[i];
+                t_mat.fine_submatrix = (t_mat.displ_gather[i]+t_mat.scounts_gather[i])/COLUMNS;
                 
             }
         }else{
-            t_mat.scounts_scatter[0] = RIGHE * COLONNE;
+            t_mat.scounts_scatter[0] = ROWS * COLUMNS;
             t_mat.displ_scatter[0] = 0;
         }
 
-
+        t_mat.nfreeslots = 0;
+        t_mat.unsatisfied = 
 
 
 }
