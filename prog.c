@@ -39,16 +39,16 @@ typedef struct{
 } Info_cellpositions; 
 
 
-int calc_firstangle(Info_submatrix mat, Info_cellpositions cellpos);
-int calc_secondangle(Info_submatrix mat, Info_cellpositions cellpos);
-int calc_thirdangle(Info_submatrix mat, Info_cellpositions cellpos);
-int calc_fourthangle(Info_submatrix mat, Info_cellpositions cellpos);
-int calc_Ledge(Info_submatrix mat, Info_cellpositions cellpos);
-int calc_Redge(Info_submatrix mat, Info_cellpositions cellpos);
-int calc_Aedge(Info_submatrix mat, Info_cellpositions cellpos);
-int calc_Bedge(Info_submatrix mat, Info_cellpositions cellpos);
-int calc_center(Info_submatrix mat, Info_cellpositions cellpos); 
-void create_matrix(char* mat);
+_Bool calc_firstangle(Info_submatrix mat, Info_cellpositions cellpos);
+_Bool calc_secondangle(Info_submatrix mat, Info_cellpositions cellpos);
+_Bool calc_thirdangle(Info_submatrix mat, int, Info_cellpositions cellpos);
+_Bool calc_fourthangle(Info_submatrix mat, int, Info_cellpositions cellpos);
+_Bool calc_Ledge(Info_submatrix mat, int, Info_cellpositions cellpos);
+_Bool calc_Redge(Info_submatrix mat, int, Info_cellpositions cellpos);
+_Bool calc_Aedge(Info_submatrix mat, int, Info_cellpositions cellpos);
+_Bool calc_Bedge(Info_submatrix mat, int, Info_cellpositions cellpos);
+_Bool calc_center(Info_submatrix mat, int, Info_cellpositions cellpos); 
+void create_matrix(char* mat, int E, int O, int X);
 void print_matrix(char *i_mat);
 void distribute_matrix(Info_submatrix t_mat, int numproc);
 int satisfaction_step(Info_submatrix t_mat, int myrank, int numproc, Info_cellpositions cellpos);
@@ -108,14 +108,14 @@ int main(int argc, char *argv[]){
 
             if((satisfied = satisfaction_step(t_mat, myrank, numproc, cellpos))==(ROWS*COLUMNS-E)) break;
 
-            displacements_step(t_mat, myrank, numproc, cellpos);
+            //displacements_step(t_mat, myrank, numproc, cellpos);
 
             
 
             if(myrank == 0){
 
                 system("clear");
-                printf("Numero round: %d\nSoddisfatti: %d %\n", round, (satisfied*100)/(ROWS*COLUMNS));
+                printf("Numero round: %d\nSoddisfatti: %1f %%\n", round, ((float)satisfied*100)/(float)(ROWS*COLUMNS-E));
 
                 if(PRINT_ROUNDS){
                 //RICOMPONI E STAMPA MATRICE
@@ -210,7 +210,7 @@ int satisfaction_step(Info_submatrix t_mat, int myrank, int numproc, Info_cellpo
     return global_satisfied;
 }
 
-int calc_firstangle(Info_submatrix mat, Info_cellpositions cellpos){
+_Bool calc_firstangle(Info_submatrix mat, Info_cellpositions cellpos){
     float similarity = PERC_SIM*3;
     int similar_cells=0;
     if(mat.submatrix[0]==mat.submatrix[1]) similar_cells++;
@@ -225,7 +225,7 @@ int calc_firstangle(Info_submatrix mat, Info_cellpositions cellpos){
     return (similar_cells>=similarity);
 }
 
-int calc_secondangle(Info_submatrix mat, Info_cellpositions cellpos){
+_Bool calc_secondangle(Info_submatrix mat, Info_cellpositions cellpos){
     float similarity = PERC_SIM*3;
     int similar_cells=0;
     if(mat.submatrix[COLUMNS-1]==mat.submatrix[COLUMNS-2]) similar_cells++;
@@ -240,7 +240,7 @@ int calc_secondangle(Info_submatrix mat, Info_cellpositions cellpos){
     return (similar_cells>=similarity);
 }
 
-int calc_thirdangle(Info_submatrix mat, int myrank, Info_cellpositions cellpos){
+_Bool calc_thirdangle(Info_submatrix mat, int myrank, Info_cellpositions cellpos){
     float similarity = PERC_SIM*3;
     int similar_cells=0;
     if(mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+1]==mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+2]) similar_cells++;
@@ -255,7 +255,7 @@ int calc_thirdangle(Info_submatrix mat, int myrank, Info_cellpositions cellpos){
     return (similar_cells>=similarity);
 }
 
-int calc_fourthangle(Info_submatrix mat, int myrank, Info_cellpositions cellpos){
+_Bool calc_fourthangle(Info_submatrix mat, int myrank, Info_cellpositions cellpos){
     float similarity = PERC_SIM*3;
     int similar_cells=0;
     if(mat.submatrix[mat.scounts_scatter[myrank]-1]==mat.submatrix[mat.scounts_scatter[myrank]-2]) similar_cells++;
@@ -270,7 +270,7 @@ int calc_fourthangle(Info_submatrix mat, int myrank, Info_cellpositions cellpos)
     return (similar_cells>=similarity);
 }
 
-int calc_Ledge(Info_submatrix mat, int index, Info_cellpositions cellpos){
+_Bool calc_Ledge(Info_submatrix mat, int index, Info_cellpositions cellpos){
     float similarity = PERC_SIM*5;
     int similar_cells=0;
     if(mat.submatrix[index]==mat.submatrix[index+1]) similar_cells++;
@@ -287,7 +287,7 @@ int calc_Ledge(Info_submatrix mat, int index, Info_cellpositions cellpos){
     return (similar_cells>=similarity);
 }
 
-int calc_Redge(Info_submatrix mat, int index, Info_cellpositions cellpos){
+_Bool calc_Redge(Info_submatrix mat, int index, Info_cellpositions cellpos){
     float similarity = PERC_SIM*5;
     int similar_cells=0;
     if(mat.submatrix[index]==mat.submatrix[index-1]) similar_cells++;
@@ -304,7 +304,7 @@ int calc_Redge(Info_submatrix mat, int index, Info_cellpositions cellpos){
     return (similar_cells>=similarity);
 }
 
-int calc_Aedge(Info_submatrix mat, int index, Info_cellpositions cellpos){
+_Bool calc_Aedge(Info_submatrix mat, int index, Info_cellpositions cellpos){
     float similarity = PERC_SIM*5;
     int similar_cells=0;
     if(mat.submatrix[index]==mat.submatrix[index-1]) similar_cells++;
@@ -321,7 +321,7 @@ int calc_Aedge(Info_submatrix mat, int index, Info_cellpositions cellpos){
     return (similar_cells>=similarity);
 }
 
-int calc_Bedge(Info_submatrix mat, int index, Info_cellpositions cellpos){
+_Bool calc_Bedge(Info_submatrix mat, int index, Info_cellpositions cellpos){
     float similarity = PERC_SIM*5;
     int similar_cells=0;
     if(mat.submatrix[index]==mat.submatrix[index-1]) similar_cells++;
@@ -338,7 +338,7 @@ int calc_Bedge(Info_submatrix mat, int index, Info_cellpositions cellpos){
     return (similar_cells>=similarity);
 }
 
-int calc_center(Info_submatrix mat, int index, Info_cellpositions cellpos){
+_Bool calc_center(Info_submatrix mat, int index, Info_cellpositions cellpos){
     float similarity = PERC_SIM*8;
     int similar_cells=0;
     if(mat.submatrix[index]==mat.submatrix[index-1]) similar_cells++;
@@ -464,9 +464,4 @@ void distribute_matrix(Info_submatrix t_mat, int numproc){
             t_mat.scounts_scatter[0] = ROWS * COLUMNS;
             t_mat.displ_scatter[0] = 0;
         }
-
-        t_mat.nfreeslots = 0;
-        t_mat.unsatisfied = 
-
-
 }
