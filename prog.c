@@ -5,13 +5,13 @@
 #include <time.h>
 
 
-#define COLUMNS 10
-#define ROWS 10
+#define COLUMNS 5
+#define ROWS 5
 #define N_ROUND_MAX 300
 #define PERC_O 0.5
 #define PERC_X (1-PERC_O)
 #define PERC_E 0.3
-#define PERC_SIM 0.3
+#define PERC_SIM 0.30
 #define DELAY 1
 #define PRINT_ROUNDS 1
 
@@ -56,6 +56,14 @@ void distribute_matrix(Info_submatrix t_mat, int numproc);
 Info_cellpositions satisfaction_step(Info_submatrix t_mat, int myrank, int numproc, Info_cellpositions, int *);
 void displacements_step(Info_submatrix t_mat, int myrank, int numproc, Info_cellpositions, int, int);
 void recompose_mat(int myrank, Info_submatrix t_mat, char *final_mat, int numproc);
+
+void clearScreen() {
+  //Put the cursor on top-left, so the next generation will be printed over the current one.
+  char ANSI_CLS[] = "\x1b[2J";
+  char ANSI_HOME[] = "\x1b[H";
+  printf("%s%s", ANSI_HOME, ANSI_CLS);
+  fflush(stdout);
+}
 
 int main(int argc, char *argv[]){
 	system("clear");
@@ -140,8 +148,10 @@ int main(int argc, char *argv[]){
             
             if(PRINT_ROUNDS){
                 //MPI_Barrier(MPI_COMM_WORLD);
-                system("clear");
-                //printf("\033[%d;%dH",2,2);
+                //system("clear");
+                //printf("\033[%d;%dH",0,0);
+                //clearScreen();
+                printf("\e[1;1H\e[2J\n");
                 if(numproc>1){
                     //RICOMPONI E STAMPA MATRICE
                     recompose_mat(myrank, t_mat, final_mat, numproc);
@@ -151,6 +161,7 @@ int main(int argc, char *argv[]){
                 }
                 else{
                     //UN SOLO PROCESSO
+                    print_matrix(t_mat.submatrix);
                 }
                 
             }
@@ -175,9 +186,9 @@ int main(int argc, char *argv[]){
         
         end = MPI_Wtime();
         
-        
+        if(numproc>1 && myrank==0) recompose_mat(myrank, t_mat, final_mat, numproc);
+        else final_mat=t_mat.submatrix;
 
-        if(numproc>1) recompose_mat(myrank, t_mat, final_mat, numproc);
         if(myrank==0){
             
             printf("\n\tSTARTING MATRIX\n");
@@ -192,7 +203,7 @@ int main(int argc, char *argv[]){
         }
 	}else{
         //aggiungere controllo se numproc>ROWS
-        printf("numproc>ROWS... Ripetere");
+        printf("\n\x1b[31mPlease enter fewer processes than %d (ROWS NUMBER) \x1b[0m", ROWS);
     }
 	
     /*if(myrank == 1){
@@ -219,26 +230,33 @@ int main(int argc, char *argv[]){
 
 void recompose_mat(int myrank, Info_submatrix t_mat, char *final_mat, int numproc){
 
-        char *submatGather = (char *)malloc(sizeof(char)*t_mat.scounts_gather[myrank]);
         int i=0, j=0;
         
-        if(myrank==0) for(i=0; i<t_mat.scounts_gather[myrank];i++) submatGather[i]=t_mat.submatrix[i];
-        else if(myrank==(numproc-1)){
+        if(numproc>1){
             
-            for(i=COLUMNS; i<t_mat.scounts_scatter[myrank];i++){
-                submatGather[j]=t_mat.submatrix[i];
-                j++;
+            char *submatGather = (char *)malloc(sizeof(char)*t_mat.scounts_gather[myrank]);
+        
+            if(myrank==0) for(i=0; i<t_mat.scounts_gather[myrank];i++) submatGather[i]=t_mat.submatrix[i];
+            else if(myrank==(numproc-1)){
+                
+                for(i=COLUMNS; i<t_mat.scounts_scatter[myrank];i++){
+                    submatGather[j]=t_mat.submatrix[i];
+                    j++;
+                }
             }
+            else{
+                for(i=COLUMNS; i<(t_mat.scounts_scatter[myrank]-COLUMNS);i++){
+                    submatGather[j]=t_mat.submatrix[i];
+                    j++;
+                }
+            }
+            MPI_Gatherv(submatGather, t_mat.scounts_gather[myrank], MPI_CHAR, final_mat, t_mat.scounts_gather, t_mat.displ_gather, MPI_CHAR, 0, MPI_COMM_WORLD);
+            free(submatGather);
         }
         else{
-            for(i=COLUMNS; i<(t_mat.scounts_scatter[myrank]-COLUMNS);i++){
-                submatGather[j]=t_mat.submatrix[i];
-                j++;
-            }
+            final_mat = t_mat.submatrix;
         }
-
-        MPI_Gatherv(submatGather, t_mat.scounts_gather[myrank], MPI_CHAR, final_mat, t_mat.scounts_gather, t_mat.displ_gather, MPI_CHAR, 0, MPI_COMM_WORLD);
-        free(submatGather);
+        
 }
 
 int sum(int *arr, int length){
@@ -334,6 +352,16 @@ void displacements_step(Info_submatrix t_mat, int myrank, int numproc, Info_cell
     }
     else{
         //UN SOLO PROCESSO
+        char total_unsat_freeslots[cellpos.n_freeslots];
+        for(i=0;i<cellpos.n_freeslots;i++) 
+            if(i<cellpos.n_unsatisfied) total_unsat_freeslots[i]=cellpos.unsatisfied[i];
+            else total_unsat_freeslots[i]=' ';
+
+        randomize(total_unsat_freeslots, cellpos.n_freeslots);
+
+        for(i=0;i<cellpos.n_freeslots;i++)
+            t_mat.submatrix[cellpos.freeslots[i]]=total_unsat_freeslots[i];
+
     }
 }
 
@@ -562,7 +590,93 @@ Info_cellpositions satisfaction_step(Info_submatrix t_mat, int myrank, int numpr
     else{
 
         // UN PROCESSO
-
+        for(i=0; i<t_mat.scounts_scatter[myrank]; i++){
+            if(t_mat.submatrix[i]!=' '){
+                if(i==0) 
+                    if(calc_firstangle(t_mat)) local_satisfied++;
+                    else{
+                        cellpos.unsatisfied[cellpos.n_unsatisfied]=t_mat.submatrix[i];
+                        cellpos.freeslots[cellpos.n_freeslots]=i;
+                        cellpos.n_freeslots++;
+                        cellpos.n_unsatisfied++;
+                        t_mat.submatrix[i]=' ';
+                    }
+                else if(i==(COLUMNS-1)){
+                    if(calc_secondangle(t_mat)) local_satisfied++; 
+                    else{
+                        cellpos.unsatisfied[cellpos.n_unsatisfied]=t_mat.submatrix[i];
+                        cellpos.freeslots[cellpos.n_freeslots]=i;
+                        cellpos.n_freeslots++;
+                        cellpos.n_unsatisfied++;
+                        t_mat.submatrix[i]=' ';
+                    }
+                }
+                else if(i>0 && i<COLUMNS){
+                    if(calc_Aedge(t_mat, i)) local_satisfied++; 
+                    else{
+                        cellpos.unsatisfied[cellpos.n_unsatisfied]=t_mat.submatrix[i];
+                        cellpos.freeslots[cellpos.n_freeslots]=i;
+                        cellpos.n_freeslots++;
+                        cellpos.n_unsatisfied++;
+                        t_mat.submatrix[i]=' ';
+                    }
+                }
+                else if(i%COLUMNS==0 && i!=(t_mat.scounts_scatter[myrank]-COLUMNS+1)){
+                    if(calc_Ledge(t_mat, i, myrank)) local_satisfied++; 
+                    else{
+                        cellpos.unsatisfied[cellpos.n_unsatisfied]=t_mat.submatrix[i];
+                        cellpos.freeslots[cellpos.n_freeslots]=i;
+                        cellpos.n_freeslots++;
+                        cellpos.n_unsatisfied++;
+                        t_mat.submatrix[i]=' ';
+                    }
+                }
+                else if(i%COLUMNS==(COLUMNS-1) && i!=(t_mat.scounts_scatter[myrank]-1)){
+                    if(calc_Redge(t_mat, i, myrank)) local_satisfied++; 
+                    else{
+                        cellpos.unsatisfied[cellpos.n_unsatisfied]=t_mat.submatrix[i];
+                        cellpos.freeslots[cellpos.n_freeslots]=i;
+                        cellpos.n_freeslots++;
+                        cellpos.n_unsatisfied++;
+                        t_mat.submatrix[i]=' ';
+                    }
+                }
+                else if(i==(t_mat.scounts_scatter[myrank]-COLUMNS+1)){
+                    if(calc_thirdangle(t_mat, myrank)) local_satisfied++; 
+                    else{
+                        cellpos.unsatisfied[cellpos.n_unsatisfied]=t_mat.submatrix[i];
+                        cellpos.freeslots[cellpos.n_freeslots]=i;
+                        cellpos.n_freeslots++;
+                        cellpos.n_unsatisfied++;
+                        t_mat.submatrix[i]=' ';
+                    }
+                }
+                else if(i==(t_mat.scounts_scatter[myrank]-1)){
+                    if(calc_fourthangle(t_mat, myrank)) local_satisfied++; 
+                    else{
+                        cellpos.unsatisfied[cellpos.n_unsatisfied]=t_mat.submatrix[i];
+                        cellpos.freeslots[cellpos.n_freeslots]=i;
+                        cellpos.n_freeslots++;
+                        cellpos.n_unsatisfied++;
+                        t_mat.submatrix[i]=' ';
+                    }
+                }
+                else{
+                    if(calc_center(t_mat, i, myrank)) local_satisfied++; 
+                    else{
+                        cellpos.unsatisfied[cellpos.n_unsatisfied]=t_mat.submatrix[i];
+                        cellpos.freeslots[cellpos.n_freeslots]=i;
+                        cellpos.n_freeslots++;
+                        cellpos.n_unsatisfied++;
+                        t_mat.submatrix[i]=' ';
+                    }
+                }
+            }else{
+                cellpos.freeslots[cellpos.n_freeslots]=i;
+                cellpos.n_freeslots++;
+            }
+        }
+        *satisfied = local_satisfied;
     }
     
 
@@ -788,6 +902,8 @@ void distribute_matrix(Info_submatrix t_mat, int numproc){
         }else{
             t_mat.scounts_scatter[0] = ROWS * COLUMNS;
             t_mat.displ_scatter[0] = 0;
+            t_mat.scounts_gather[0] = ROWS*COLUMNS;
+            t_mat.displ_gather[0] = 0;
         }
         
 }
