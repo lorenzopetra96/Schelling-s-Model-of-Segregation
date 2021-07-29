@@ -5,13 +5,13 @@
 #include <time.h>
 
 
-#define COLUMNS 5
-#define ROWS 5
+#define COLUMNS 25
+#define ROWS 35
 #define N_ROUND_MAX 300
 #define PERC_O 0.5
 #define PERC_X (1-PERC_O)
 #define PERC_E 0.3
-#define PERC_SIM 0.30
+#define PERC_SIM 0.10
 #define DELAY 1
 #define PRINT_ROUNDS 1
 
@@ -57,14 +57,6 @@ Info_cellpositions satisfaction_step(Info_submatrix t_mat, int myrank, int numpr
 void displacements_step(Info_submatrix t_mat, int myrank, int numproc, Info_cellpositions, int, int);
 void recompose_mat(int myrank, Info_submatrix t_mat, char *final_mat, int numproc);
 
-void clearScreen() {
-  //Put the cursor on top-left, so the next generation will be printed over the current one.
-  char ANSI_CLS[] = "\x1b[2J";
-  char ANSI_HOME[] = "\x1b[H";
-  printf("%s%s", ANSI_HOME, ANSI_CLS);
-  fflush(stdout);
-}
-
 int main(int argc, char *argv[]){
 	system("clear");
     
@@ -77,16 +69,11 @@ int main(int argc, char *argv[]){
     time_t now = time(NULL);
     struct tm *tm_struct = localtime(&now);
     int hour = tm_struct->tm_hour;
-    
-    
-    
+
     //Per il controllo della satisfaction
     int E = (ROWS*COLUMNS*PERC_E);
     int O = (ROWS*COLUMNS-E)*PERC_O, X = (ROWS*COLUMNS-E)*PERC_X;
     if(ROWS*COLUMNS != (O+E+X)) E+=(ROWS*COLUMNS)-(O+E+X);
-    
-
-	//srand(time(NULL)+myrank);
 
 	MPI_Init(&argc, &argv);
 
@@ -98,7 +85,6 @@ int main(int argc, char *argv[]){
     t_mat.scounts_gather = (int *)malloc(sizeof(int)*numproc);
     t_mat.displ_scatter = (int *)malloc(sizeof(int)*numproc);
     t_mat.displ_gather = (int *)malloc(sizeof(int)*numproc);
-    
 
     if(numproc<=ROWS){
         if(myrank == 0){
@@ -106,17 +92,16 @@ int main(int argc, char *argv[]){
             mat = (char *)malloc(ROWS * COLUMNS * sizeof(char));
             final_mat = (char *)malloc(ROWS * COLUMNS * sizeof(char));
             create_matrix(mat, E, O, X);
-            //printf("MATRICE INIZIALE\n"); val++;
             print_matrix(mat);
             sleep(DELAY);
             printf("\n");
         }
 
+        
+
         distribute_matrix(t_mat, numproc);
         t_mat.submatrix = (char *)malloc(sizeof(char)*t_mat.scounts_scatter[myrank]);
 
-        
-        
         MPI_Scatterv(mat, t_mat.scounts_scatter, t_mat.displ_scatter, MPI_CHAR, t_mat.submatrix, t_mat.scounts_scatter[myrank], MPI_CHAR, 0, MPI_COMM_WORLD);
         MPI_Barrier(MPI_COMM_WORLD);
         start = MPI_Wtime();
@@ -125,21 +110,15 @@ int main(int argc, char *argv[]){
 
             cellpos.unsatisfied = (char *)malloc(sizeof(char)*t_mat.scounts_gather[myrank]); 
             cellpos.freeslots = (int *)malloc(sizeof(int)*t_mat.scounts_gather[myrank]);
-
             
             //Calcolo insoddisfatti la cui posizione viene sostituita con ' '. Calcolo freeslots.
             cellpos = satisfaction_step(t_mat, myrank, numproc, cellpos, &satisfied);
-
-            
 
             if(satisfied==(ROWS*COLUMNS-E)){
                 free(cellpos.freeslots);
                 free(cellpos.unsatisfied);
                 break;
             }
-            //if(myrank == 0) printf("\nNEL WHILE-------RANK: %d - FREESLOTS: %d\nSATISFIED: %d\n", myrank, cellpos.n_freeslots, satisfied);
-            
-            //if(myrank==2) for(i=0;i<3;i++) printf("\nELEM: %c", cellpos.unsatisfied[i]);
            
             //Riempio array di freeslots con valori di insoddisfatti e randomizzo l'array. Divido l'array
             //in sezioni, ognuna corrispondente a quella del rank. Infine sostituisco i valori dell'array
@@ -147,10 +126,7 @@ int main(int argc, char *argv[]){
             displacements_step(t_mat, myrank, numproc, cellpos, (ROWS*COLUMNS-E-satisfied), round);
             
             if(PRINT_ROUNDS){
-                //MPI_Barrier(MPI_COMM_WORLD);
-                //system("clear");
                 //printf("\033[%d;%dH",0,0);
-                //clearScreen();
                 printf("\e[1;1H\e[2J\n");
                 if(numproc>1){
                     //RICOMPONI E STAMPA MATRICE
@@ -163,15 +139,11 @@ int main(int argc, char *argv[]){
                     //UN SOLO PROCESSO
                     print_matrix(t_mat.submatrix);
                 }
-                
             }
 
             if(myrank == 0){
-                
-                
                 printf("\nRound: %d/%d\nSatisfied: %.1f %% (%d/%d)\n", round, N_ROUND_MAX,((float)satisfied*100)/(float)(ROWS*COLUMNS-E), satisfied, ROWS*COLUMNS-E);
                 sleep(DELAY);
-                
             }
             
             free(cellpos.freeslots);
@@ -179,14 +151,15 @@ int main(int argc, char *argv[]){
             round++;
         }
 
-        system("clear");
         
-
+        
+        
         MPI_Barrier(MPI_COMM_WORLD);
+        system("clear");
         
         end = MPI_Wtime();
         
-        if(numproc>1 && myrank==0) recompose_mat(myrank, t_mat, final_mat, numproc);
+        if(numproc>1) recompose_mat(myrank, t_mat, final_mat, numproc);
         else final_mat=t_mat.submatrix;
 
         if(myrank==0){
@@ -201,19 +174,18 @@ int main(int argc, char *argv[]){
                 printf("\n\n \x1b[31m  NOT ALL AGENTS ARE SATISFIED..\x1b[0m \n\n");
             printf("\n\n\tMATRIX SIZE: %dx%d \n\n\tSIMILAR: %d%%\n\n\tRED/BLUE: %d%%/%d%%\n\n\tEMPTY: %d%% \n\n\tTIME PASSED: %f \n\n\tSATISFIED: %d/%d\n\n\tPERC SATISFIED: %.1f %%\n\n\tROUNDS: %d/%d\n\n\n", ROWS, COLUMNS, (int)(PERC_SIM*100),(int)(PERC_O*100), (int)(PERC_X*100), (int)(PERC_E*100),end-start, satisfied, (ROWS*COLUMNS-E),((float)satisfied*100)/(float)(ROWS*COLUMNS-E), round, N_ROUND_MAX);
         }
+
+        
+        
+        
+
 	}else{
-        //aggiungere controllo se numproc>ROWS
-        printf("\n\x1b[31mPlease enter fewer processes than %d (ROWS NUMBER) \x1b[0m", ROWS);
+        if(myrank==0) printf("\n\n\n\x1b[31mPlease enter fewer processes than %d (ROWS NUMBER) \x1b[0m\n\n\n\n\n", ROWS);
     }
-	
-    /*if(myrank == 1){
-        for(i=0; i<t_mat.scounts_scatter[myrank]; i++){
-            if(i%COLUMNS == 0) printf("\n");
-            printf(".%c. ", t_mat.submatrix[i]);
-        }
-    }*/
-	 
+
 	MPI_Finalize();
+
+    
 
     free(t_mat.displ_gather);
     free(t_mat.displ_scatter);
@@ -223,18 +195,16 @@ int main(int argc, char *argv[]){
     free(mat);
     free(final_mat);
 
-
-
 	return 0;
 }
 
 void recompose_mat(int myrank, Info_submatrix t_mat, char *final_mat, int numproc){
 
         int i=0, j=0;
-        
+        char *submatGather = (char *)malloc(sizeof(char)*t_mat.scounts_gather[myrank]);
         if(numproc>1){
             
-            char *submatGather = (char *)malloc(sizeof(char)*t_mat.scounts_gather[myrank]);
+            
         
             if(myrank==0) for(i=0; i<t_mat.scounts_gather[myrank];i++) submatGather[i]=t_mat.submatrix[i];
             else if(myrank==(numproc-1)){
@@ -251,12 +221,9 @@ void recompose_mat(int myrank, Info_submatrix t_mat, char *final_mat, int numpro
                 }
             }
             MPI_Gatherv(submatGather, t_mat.scounts_gather[myrank], MPI_CHAR, final_mat, t_mat.scounts_gather, t_mat.displ_gather, MPI_CHAR, 0, MPI_COMM_WORLD);
-            free(submatGather);
+            
         }
-        else{
-            final_mat = t_mat.submatrix;
-        }
-        
+        free(submatGather);
 }
 
 int sum(int *arr, int length){
@@ -397,7 +364,6 @@ Info_cellpositions satisfaction_step(Info_submatrix t_mat, int myrank, int numpr
     cellpos.n_unsatisfied=0;
     cellpos.n_freeslots=0;
 
-    i = (myrank!=0) ? COLUMNS : 0;
     if(numproc>1){
         if(myrank==0){
 
@@ -707,9 +673,6 @@ _Bool calc_thirdangle(Info_submatrix mat, int myrank){
     if(mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+1]==mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+2]) similar_cells++;
     if(mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+1]==mat.submatrix[mat.scounts_scatter[myrank]-(COLUMNS*2)+1]) similar_cells++;
     if(mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+1]==mat.submatrix[mat.scounts_scatter[myrank]-(COLUMNS*2)+2]) similar_cells++;
-    if(myrank==3){
-        //printf("\nTERZO ANGOLO -> VAL: %c - INDEX: %d - SIM_CELL: %f > SIMILARITY: %f ?", mat.submatrix[mat.scounts_scatter[myrank]-COLUMNS+1], mat.scounts_scatter[myrank]-COLUMNS+1, similar_cells, similarity);
-    }
     return (similar_cells>=similarity);
 }
 
@@ -719,9 +682,6 @@ _Bool calc_fourthangle(Info_submatrix mat, int myrank){
     if(mat.submatrix[mat.scounts_scatter[myrank]-1]==mat.submatrix[mat.scounts_scatter[myrank]-2]) similar_cells++;
     if(mat.submatrix[mat.scounts_scatter[myrank]-1]==mat.submatrix[mat.scounts_scatter[myrank]-1-COLUMNS]) similar_cells++;
     if(mat.submatrix[mat.scounts_scatter[myrank]-1]==mat.submatrix[mat.scounts_scatter[myrank]-2-COLUMNS]) similar_cells++;
-    if(myrank==3){
-        //printf("\nQUARTO ANGOLO -> VAL: %c - INDEX: %d - SIM_CELL: %f > SIMILARITY: %f ?", mat.submatrix[mat.scounts_scatter[myrank]-1], mat.scounts_scatter[myrank]-1, similar_cells, similarity);
-    }
     return (similar_cells>=similarity);
 }
 
@@ -733,9 +693,6 @@ _Bool calc_Ledge(Info_submatrix mat, int index, int myrank){
     if(mat.submatrix[index]==mat.submatrix[index+COLUMNS+1]) similar_cells++;
     if(mat.submatrix[index]==mat.submatrix[index-COLUMNS]) similar_cells++;
     if(mat.submatrix[index]==mat.submatrix[index-COLUMNS+1]) similar_cells++;
-    if(myrank==3){
-        //printf("\nLEDGE -> VAL: %c - INDEX: %d - SIM_CELL: %f > SIMILARITY: %f ?", mat.submatrix[index], index, similar_cells, similarity);
-    }
     return (similar_cells>=similarity);
 }
 
@@ -747,9 +704,6 @@ _Bool calc_Redge(Info_submatrix mat, int index, int myrank){
     if(mat.submatrix[index]==mat.submatrix[index+COLUMNS-1]) similar_cells++;
     if(mat.submatrix[index]==mat.submatrix[index-COLUMNS]) similar_cells++;
     if(mat.submatrix[index]==mat.submatrix[index-COLUMNS-1]) similar_cells++;
-    if(myrank==3){
-        //printf("\nREDGE -> VAL: %c - INDEX: %d - SIM_CELL: %f > SIMILARITY: %f ?", mat.submatrix[index], index, similar_cells, similarity);
-    }
     return (similar_cells>=similarity);
 }
 
@@ -772,9 +726,6 @@ _Bool calc_Bedge(Info_submatrix mat, int index, int myrank){
     if(mat.submatrix[index]==mat.submatrix[index-COLUMNS-1]) similar_cells++;
     if(mat.submatrix[index]==mat.submatrix[index-COLUMNS+1]) similar_cells++;
     if(mat.submatrix[index]==mat.submatrix[index+1]) similar_cells++;
-    if(myrank==3){
-        //printf("\nBEDGE -> VAL: %c - INDEX: %d - SIM_CELL: %f >= SIMILARITY: %f ?\nOVEST: %c, NORD: %c, NORD-OVEST: %c, NORD-EST: %c, EST: %c", mat.submatrix[index], index, similar_cells, similarity, mat.submatrix[index-1], mat.submatrix[index-COLUMNS], mat.submatrix[index-COLUMNS-1], mat.submatrix[index-COLUMNS+1], mat.submatrix[index+1]);
-    }
     return (similar_cells>=similarity);
 }
 
@@ -789,9 +740,6 @@ _Bool calc_center(Info_submatrix mat, int index, int myrank){
     if(mat.submatrix[index]==mat.submatrix[index-COLUMNS+1]) similar_cells++;
     if(mat.submatrix[index]==mat.submatrix[index+COLUMNS-1]) similar_cells++;
     if(mat.submatrix[index]==mat.submatrix[index+COLUMNS+1]) similar_cells++;
-    if(myrank==1){
-    //printf("\nCENTER -> VAL: %c - INDEX: %d - SIM_CELL: %f > SIMILARITY: %f ?\nOVEST: %c, NORD-OVEST: %c, NORD: %c, NORD-EST: %c, EST: %c, SUD-EST: %c, SUD: %c, SUD-OVEST: %c", mat.submatrix[index], index, similar_cells, similarity, mat.submatrix[index-1], mat.submatrix[index-COLUMNS-1], mat.submatrix[index-COLUMNS],mat.submatrix[index-COLUMNS+1], mat.submatrix[index+1], mat.submatrix[index+COLUMNS+1], mat.submatrix[index+COLUMNS], mat.submatrix[index+COLUMNS-1]);    
-    }
     return (similar_cells>=similarity);
 }
 
