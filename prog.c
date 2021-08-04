@@ -5,15 +5,15 @@
 #include <time.h>
 
 #define COLUMNS 25              //Numero Colonne              
-#define ROWS 35                 //Numero Righe
+#define ROWS 50                 //Numero Righe
 #define N_ROUND_MAX 300         //Numero Round Massimi
 #define PERC_O 0.5              //Percentuale di 'O'
 #define PERC_X (1-PERC_O)       //Percentuale di 'X'
 #define PERC_E 0.3              //Percentuale di celle vuote
-#define PERC_SIM 0.10           //Percentuale di soddisfazione
-#define DELAY 1                 //Delay di attesa per round
-#define PRINT_ROUNDS 1          //'1' se si vuole stampare la matrice risultante ad ogni round
-#define PERFORMANCE 0           // 1-> Calcolo matrice risultante senza stampe a favore delle prestazioni
+#define PERC_SIM 0.3           //Percentuale di soddisfazione
+#define DELAY 0                 //Delay di attesa per round
+#define PRINT_ROUNDS 0          //'1' se si vuole stampare la matrice risultante ad ogni round
+#define PERFORMANCE 0           //'1' se si vuole calcolare matrice risultante senza stampe a favore delle prestazioni
 
 typedef struct{
     //Sottomatrice assegnata ad ogni thread 
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]){
             create_matrix(mat, E, O, X);    
             if(!PERFORMANCE) print_matrix(mat);
             sleep(DELAY);
-            printf("\n");
+            printf("\n\tThe program has started. Please wait...\n");
         }
 
         //Distribuzione della matrice per il numero di thread
@@ -161,7 +161,7 @@ int main(int argc, char *argv[]){
         }
 
         MPI_Barrier(MPI_COMM_WORLD);
-        system("clear");
+        if(!PERFORMANCE) system("clear");
         
         end = MPI_Wtime();
 
@@ -170,6 +170,7 @@ int main(int argc, char *argv[]){
 
         //Stampa dei risultati 
         if(myrank==0){
+            printf("\n\tThe program is finished!\n");
             if(!PERFORMANCE){
                 printf("\n\tSTARTING MATRIX\n");
                 print_matrix(mat);
@@ -178,8 +179,10 @@ int main(int argc, char *argv[]){
             }
             if(satisfied==(ROWS*COLUMNS-E))
                 printf("\n\n \033[32m ALL AGENTS WERE SATISFIED !!!\x1b[0m \n\n");
-            else
-                printf("\n\n \x1b[31m  NOT ALL AGENTS ARE SATISFIED..\x1b[0m \n\n");
+            else{
+                printf("\n\n \x1b[31m  NOT ALL AGENTS ARE SATISFIED...\x1b[0m \n\n");
+                round--;
+            }
             printf("\n\n\tMATRIX SIZE: %dx%d \n\n\tSIMILAR: %d%%\n\n\tRED/BLUE: %d%%/%d%%\n\n\tEMPTY: %d%% \n\n\tTIME PASSED: %f \n\n\tSATISFIED: %d/%d\n\n\tPERC SATISFIED: %.1f %%\n\n\tROUNDS: %d/%d\n\n\n", ROWS, COLUMNS, (int)(PERC_SIM*100),(int)(PERC_O*100), (int)(PERC_X*100), (int)(PERC_E*100),end-start, satisfied, (ROWS*COLUMNS-E),((float)satisfied*100)/(float)(ROWS*COLUMNS-E), round, N_ROUND_MAX);
         }
 	}else{
