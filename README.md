@@ -5,12 +5,37 @@
 
 Progetto per l'esame di _Programmazione Concorrente, Parallela e sul Cloud_ dell'anno di corso _2020/2021_. 
 Laurea magistrale in Computer Science, curriculum in Cloud Computing.
+___
+## **Indice**
+
+### [**Introduzione**](#introduzione)
+- [_Il modello di segregazione di Schelling: Cos'è_](#modello)
+- [_Descrizione del problema_](#descrizione_problema)
+
+### [**Dettagli implementativi**](#dettagli_impl)
+- [_Creazione Matrice_](#creazione)
+- [_Distribuzione Matrice_](#distribuzione)
+- [_Calcolo soddisfazione_](#soddisfazione)
+- [_Riposizionamento insoddisfatti_](#riposizionamento)
+- [_Ricomposizione Matrice_](#ricomposizione)
+- [_Stampa dei risultati_](#risultati)
+
+### [**Note sull'implementazione**](#note_implementazione)
+- [_Compilazione_](#compilazione)
+- [_Esecuzione_](#esecuzione)
+
+### [**Benchmarks**](#benchmarks)
+
+### [**Correttezza**](#correttezza)
+
+### [**Conclusioni**](#conclusioni)
+
 
 ___
 
 ## Introduzione 
 
-### _Il modello di segregazione di Shelling: Cos'è_
+### _Il modello di segregazione di Schelling: Cos'è_
 
 Nel 1971, l'economista americano Thomas Schelling creò un modello basato su agenti che suggeriva che anche il comportamento involontario potesse contribuire alla segregazione. Il suo modello di segregazione ha mostrato che anche quando gli individui (o "agenti") non si preoccupavano di essere circondati o vivere da agenti di una razza o un background economico diverso, avrebbero comunque scelto di separarsi dagli altri agenti nel tempo. Sebbene il modello sia abbastanza semplice, fornisce uno sguardo affascinante su come gli individui potrebbero auto-segregarsi, anche quando non hanno un desiderio esplicito di farlo.
 > _[Riferimenti](https://en.wikipedia.org/wiki/Schelling's_model_of_segregation)_
@@ -29,7 +54,7 @@ oppure
 ___
 ## Dettagli implementativi
 
-Per la risoluzione del problema è stato scelto di usare **```C```** come linguaggio di programmazione e la libreria **```MPI (Message Passing Interface)```** per lavorare in logica distribuita. Dal seguente diagramma di flusso è possibile evidenziare i quattro passi principali di computazione che hanno permesso di trovare una soluzione al quesito posto. Successivamente verranno illustrati i vari punti nel dettaglio.
+Per la risoluzione del problema è stato scelto di usare **```C```** come linguaggio di programmazione e la libreria **```MPI (Message Passing Interface)```** per lavorare in logica distribuita. Dal seguente diagramma di flusso è possibile evidenziare i passi principali di computazione che hanno permesso di trovare una soluzione al quesito posto. Successivamente verranno illustrati i vari punti nel dettaglio.
 
 ![diagramma](./media/diagramma_di_flusso.png)
 
@@ -184,15 +209,17 @@ Per calcolare la soddisfazione di un agente è importante verificare dapprima il
 1. per una cella centrale
     - _**calc_center**_
 
-Ad ognuna di queste funzioni verrà passata sia la propria sottomatrice che l'indice della cella in esame. Dopo aver calcolato il numero di celle vicine aventi come agente quello uguale alla cella passata, il calcolo della soddisfazione sarà dato dal confronto di due variabili: 
+Ad ognuna di queste funzioni verrà passata sia la propria sottomatrice che l'indice della cella in esame. Dopo aver calcolato il numero di celle vicine aventi come agente quello della cella passata, il calcolo della soddisfazione sarà dato dal confronto di due variabili: 
 ```c
 return (similar_cells>=similarity);
 ```
 dove
 ```c
-float similarity = PERC_SIM*N; //Grado di soddisfazione
+float similarity = PERC_SIM*N; //Grado di soddisfazione 
 ```
-> il valore **N** varia a seconda della posizione della cella: 
+
+> Il valore **PERC_SIM** è la percentuale di soddisfazione fissata prima della fase di compilazione ([**Note sull'implementazione**](#note_implementazione))
+> Il valore **N** varia a seconda della posizione della cella: 
 > - 3 per cella angolo 
 > - 5 per cella cornice
 > - 8 per cella centrale
@@ -231,7 +258,7 @@ Se invece la cella è vuota:
 1. L'indice della cella vuota viene salvato nell'array di celle vuote;
 1. Il numero di celle vuote viene incrementato.
 
-Una volta che ogni thread ha calcolato il numero delle celle soddisfatte della proprio sottomatrice, tramite una _**MPI_Allreduce**_ ogni processo determinerà il valore della soddisfazione globale, cioè quella dell'intera matrice
+Nel momento in cui ogni thread ha calcolato il numero delle celle soddisfatte della proprio sottomatrice, tramite una _**MPI_Allreduce**_ ogni processo determinerà il valore della soddisfazione globale, cioè quella dell'intera matrice
 
 ```c
 MPI_Allreduce(&local_satisfied, &global_satisfied, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -291,25 +318,111 @@ for(i=0;i<cellpos.n_freeslots;i++) t_mat.submatrix[cellpos.freeslots[i]]=total_u
 
 e aggiornare le righe supplementari con i nuovi valori ricollocati nella loro nuova posizione all'interno della matrice. 
 
+```c
+//Prima di assegnare i nuovi valori delle celle insoddisfatti alle matrici dei vari thread, vengono aggiornate le righe supplementari utili al calcolo della soddisfazione al successivo round
 
+if(myrank==0)   //Rank==0 -> MASTER quindi bisogna aggiornare solamente una riga supplementare cioè l'ultima della sottomatrice
+    for(i=0; i<number_of_freeslots_per_th[1];i++){
+        if(all_freeslots[displs_freeslots[1]+i]>=(COLUMNS*2)) break;
+        else if(all_freeslots[displs_freeslots[1]+i]>=COLUMNS){
+            t_mat.submatrix[t_mat.scounts_scatter[myrank]-COLUMNS+(all_freeslots[displs_freeslots[1]+i]%COLUMNS)] = total_unsat_freeslots[displs_freeslots[1]+i];
+        }
+    }
+else if(myrank==(numproc-1)){   //Rank==(totale processi - 1) -> ULTIMO THREAD quindi bisogna aggiornare solamente una riga cioè la prima della sottomatrice
+    for(i=0; i<number_of_freeslots_per_th[numproc-2];i++)
+        if(all_freeslots[displs_freeslots[numproc-2]+i]>=(t_mat.scounts_scatter[numproc-2]-(COLUMNS*2))){
+            t_mat.submatrix[all_freeslots[(displs_freeslots[numproc-2]+i)]%COLUMNS] = total_unsat_freeslots[displs_freeslots[numproc-2]+i];
+        }
+}
+else{   //Rank compreso tra 0 e l'ultimo thread quindi bisogna aggiornare due righe supplementari, la prima e l'ultima della sottomatrice
+    //PRIMA RIGA
+    for(i=0; i<number_of_freeslots_per_th[myrank-1];i++)
+        if(all_freeslots[displs_freeslots[myrank-1]+i]>=(t_mat.scounts_scatter[myrank-1]-(COLUMNS*2)) &&  all_freeslots[displs_freeslots[myrank-1]+i]<(t_mat.scounts_scatter[myrank-1]-COLUMNS)){ 
+            t_mat.submatrix[all_freeslots[displs_freeslots[myrank-1]+i]%COLUMNS] = total_unsat_freeslots[displs_freeslots[myrank-1]+i];
+        }
+    //ULTIMA RIGA
+    for(i=0; i<number_of_freeslots_per_th[myrank+1];i++)
+        if(all_freeslots[displs_freeslots[myrank+1]+i]>=COLUMNS && all_freeslots[displs_freeslots[myrank+1]+i]<(COLUMNS*2)){
+            t_mat.submatrix[t_mat.scounts_scatter[myrank]-COLUMNS+(all_freeslots[displs_freeslots[myrank+1]+i]%COLUMNS)] = total_unsat_freeslots[displs_freeslots[myrank+1]+i];
+        }
+}
+```
 
+### _Ricomposizione Matrice_
+Se tutti gli agenti sono soddisfatti o è stato superato il numero di round massimo, allora si esce dal ciclo, viene ricomposta la matrice finale e vengono stampati i risultati.
+
+La ricomposizione della matrice avviene tramite la funzione _**recompose_mat**_ che non fa altro che generare un array con i valori della sottomatrice assegnata al processo e inviarlo tramite una _**Gatherv**_ al master.
+
+```c
+MPI_Gatherv(submatGather, t_mat.scounts_gather[myrank], MPI_CHAR, final_mat, t_mat.scounts_gather, t_mat.displ_gather, MPI_CHAR, 0, MPI_COMM_WORLD);
+```
+### _Stampa dei risultati_
+La stampa dei risultati è l'ultimo passo del flusso di operazioni del programma. I dati stampati a video riguardano:
+
+- Matrice iniziale e matrice finale
+- Risultato ottenuto dalla computazione
+    - Numero di celle soddisfatte
+    - Percentuale di soddisfazione ottenuta
+    - Tempo di computazione 
+    - Numero di round raggiunto
+- Parametri in input  
+    - Taglia matrice 
+    - Percentuale valori X, O e celle vuote
+    - Percentuale di soddisfazione
 
 ___
 ## Note sull'implementazione 
+Per rendere l'implementazione grafica più accattivante è stato pensato di dare la possibilità di visualizzare la matrice aggiornata ad ogni round, ovviamente a discapito delle prestazioni. Per questo motivo si consiglia di optare per questa scelta qualora non si vogliano misurare le performance del programma.
 
+Per fare ciò è fondamentale la modifica dei valori **DELAY**, **PRINT_ROUNDS** e **PERFORMANCE**. Il primo per sospendere il processo master per secondi dopo la stampa della matrice aggiornata, il secondo valore per consentire la visualizzazione a video della matrice risultante mentre il terzo per autorizzare la stampa a sfavore delle prestazioni. 
+```c
+//Delay di attesa per round
+#define DELAY 0
 
+//'1' se si vuole stampare la matrice risultante ad ogni round
+#define PRINT_ROUNDS 1          
 
+//'1' se si vuole calcolare matrice risultante senza stampe a favore delle prestazioni
+#define PERFORMANCE 0           
+```
 
+Inoltre, prima di effettuare la compilazione, è importante settare i valori utili per la costruzione della matrice, per il calcolo della soddisfazione e per il numero di round di computazione massimi.
 
+```c
+//Numero Colonne
+#define COLUMNS 30
 
-### Compilazione
-### Esecuzione
+//Numero Righe
+#define ROWS 30
 
+//Numero Round Massimi
+#define N_ROUND_MAX 300         
+
+//Percentuale di 'O'
+#define PERC_O 0.5              
+
+//Percentuale di 'X'
+#define PERC_X (1-PERC_O)       
+
+//Percentuale di celle vuote
+#define PERC_E 0.3              
+
+//Percentuale di soddisfazione
+#define PERC_SIM 0.3            
+```
+
+### _Compilazione_
+
+### _Esecuzione_
+
+___
 ## Benchmarks
+bench
 ___
 
 ## Correttezza
+Correttezza: dimostrare che due esecuzioni con 4 processori e 4 processori con lo stesso seed per la funzione di random nella costruzione della matrice, generano lo stesso output. 
 ___
 
 ## Conclusioni
-___
+Conclusioni
