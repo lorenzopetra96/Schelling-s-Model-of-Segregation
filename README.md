@@ -8,34 +8,34 @@ Laurea magistrale in Computer Science, curriculum in Cloud Computing.
 ___
 ## **Indice**
 
-### [**Introduzione**](#introduzione)
-- [_Il modello di segregazione di Schelling: Cos'è_](#modello)
-- [_Descrizione del problema_](#descrizione_problema)
+- [**Introduzione**](#introduzione)
+  - [_Il modello di segregazione di Schelling_](#il-modello-di-segregazione-di-Schelling)
+  - [_Descrizione del problema_](#descrizione-del-problema)
 
-### [**Dettagli implementativi**](#dettagli_impl)
-- [_Creazione Matrice_](#creazione)
-- [_Distribuzione Matrice_](#distribuzione)
-- [_Calcolo soddisfazione_](#soddisfazione)
-- [_Riposizionamento insoddisfatti_](#riposizionamento)
-- [_Ricomposizione Matrice_](#ricomposizione)
-- [_Stampa dei risultati_](#risultati)
+- [**Dettagli implementativi**](#dettagli-implementativi)
+  - [_Creazione Matrice_](#creazione-matrice)
+  - [_Distribuzione Matrice_](#distribuzione-matrice)
+  - [_Calcolo soddisfazione_](#calcolo-soddisfazione)
+  - [_Riposizionamento insoddisfatti_](#riposizionamento-insoddisfatti)
+  - [_Ricomposizione Matrice_](#ricomposizione-matrice)
+  - [_Stampa dei risultati_](#stampa-dei-risultati)
 
-### [**Note sull'implementazione**](#note_implementazione)
-- [_Compilazione_](#compilazione)
-- [_Esecuzione_](#esecuzione)
+ - [**Note sull'implementazione**](#note_sullimplementazione)
+  - [_Compilazione_](#compilazione)
+  - [_Esecuzione_](#esecuzione)
 
-### [**Benchmarks**](#benchmarks)
+- [**Benchmarks**](#benchmarks)
 
-### [**Correttezza**](#correttezza)
+- [**Correttezza**](#correttezza)
 
-### [**Conclusioni**](#conclusioni)
+- [**Conclusioni**](#conclusioni)
 
 
 ___
 
 ## Introduzione 
 
-### _Il modello di segregazione di Schelling: Cos'è_
+### _Il modello di segregazione di Schelling_
 
 Nel 1971, l'economista americano Thomas Schelling creò un modello basato su agenti che suggeriva che anche il comportamento involontario potesse contribuire alla segregazione. Il suo modello di segregazione ha mostrato che anche quando gli individui (o "agenti") non si preoccupavano di essere circondati o vivere da agenti di una razza o un background economico diverso, avrebbero comunque scelto di separarsi dagli altri agenti nel tempo. Sebbene il modello sia abbastanza semplice, fornisce uno sguardo affascinante su come gli individui potrebbero auto-segregarsi, anche quando non hanno un desiderio esplicito di farlo.
 > _[Riferimenti](https://en.wikipedia.org/wiki/Schelling's_model_of_segregation)_
