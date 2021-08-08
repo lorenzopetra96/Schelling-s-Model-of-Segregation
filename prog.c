@@ -4,16 +4,17 @@
 #include "mpi.h"
 #include <time.h>
 
-#define COLUMNS 25              //Numero Colonne              
-#define ROWS 50                 //Numero Righe
-#define N_ROUND_MAX 300         //Numero Round Massimi
+#define COLUMNS 2000              //Numero Colonne             
+#define ROWS 18000                 //Numero Righe
+#define N_ROUND_MAX 100         //Numero Round Massimi
 #define PERC_O 0.5              //Percentuale di 'O'
 #define PERC_X (1-PERC_O)       //Percentuale di 'X'
 #define PERC_E 0.3              //Percentuale di celle vuote
-#define PERC_SIM 0.3           //Percentuale di soddisfazione
+#define PERC_SIM 0.3            //Percentuale di soddisfazione
 #define DELAY 0                 //Delay di attesa per round
 #define PRINT_ROUNDS 0          //'1' se si vuole stampare la matrice risultante ad ogni round
-#define PERFORMANCE 0           //'1' se si vuole calcolare matrice risultante senza stampe a favore delle prestazioni
+#define PERFORMANCE 1           //'1' se si vuole calcolare matrice risultante senza stampe a favore delle prestazioni
+#define SEED 1                  //'1' per effettuare test sulla stessa matrice
 
 typedef struct{
     //Sottomatrice assegnata ad ogni thread 
@@ -64,7 +65,7 @@ int main(int argc, char *argv[]){
     double start, end;
     char *mat, *final_mat;
     Info_submatrix t_mat;
-    Info_cellpositions cellpos;
+    //Info_cellpositions cellpos;
 
     //Definizione seed per creazione randomica della matrice
     time_t now = time(NULL);
@@ -112,7 +113,7 @@ int main(int argc, char *argv[]){
         start = MPI_Wtime();
 
         while(round<=N_ROUND_MAX){
-
+            Info_cellpositions cellpos;
             cellpos.unsatisfied = (char *)malloc(sizeof(char)*t_mat.scounts_gather[myrank]); 
             cellpos.freeslots = (int *)malloc(sizeof(int)*t_mat.scounts_gather[myrank]);
             
@@ -120,14 +121,14 @@ int main(int argc, char *argv[]){
             //2. Calcolo freeslots;
             //3. Calcolo soddisfazione totale
             cellpos = satisfaction_step(t_mat, myrank, numproc, cellpos, &satisfied);
-
+            
             //Se tutte le celle con valore 'X' e 'O' sono soddisfatte allora si esce dal while
             if(satisfied==(ROWS*COLUMNS-E)){
                 free(cellpos.freeslots);
                 free(cellpos.unsatisfied);
                 break;
             }
-           
+            
             //Riempio array di freeslots con valori di insoddisfatti e randomizzo l'array. 
             //Divido l'array in sezioni, ognuna corrispondente a quella del rank. 
             //Infine sostituisco i valori dell'array con i valori dei freeslots di ogni processo.
@@ -165,8 +166,7 @@ int main(int argc, char *argv[]){
         
         end = MPI_Wtime();
 
-        if(numproc>1) recompose_mat(myrank, t_mat, final_mat, numproc);
-        else final_mat=t_mat.submatrix;
+        if(numproc>1 && !PERFORMANCE) recompose_mat(myrank, t_mat, final_mat, numproc);
 
         //Stampa dei risultati 
         if(myrank==0){
@@ -175,7 +175,8 @@ int main(int argc, char *argv[]){
                 printf("\n\tSTARTING MATRIX\n");
                 print_matrix(mat);
                 printf("\n\tFINAL MATRIX\n");
-                print_matrix(final_mat);
+                if(numproc>1) print_matrix(final_mat);
+                else print_matrix(t_mat.submatrix);
             }
             if(satisfied==(ROWS*COLUMNS-E))
                 printf("\n\n \033[32m ALL AGENTS WERE SATISFIED !!!\x1b[0m \n\n");
@@ -240,23 +241,23 @@ int sum(int *arr, int length){
 //Funzione dedicata allo spostamento delle celle insoddisfatte e all'aggiornamento delle righe supplementari di ogni sottomatrice di ogni thread
 void displacements_step(Info_submatrix t_mat, int myrank, int numproc, Info_cellpositions cellpos, int unsatisfied, int round){
     
-    int sum_number_freeslots=0,                 //Somma totale del numero di celle vuote per thread
-        displs_unsatisfied[numproc],            //Displacements degli insoddisfatti per thread
-        displs_freeslots[numproc],              //Displacements delle celle vuote per thread
-        number_of_unsatisfied_per_th[numproc],  //Numero di insoddisfatti per thread
-        number_of_freeslots_per_th[numproc],    //Numero di celle vuote per thread
+    int sum_number_freeslots=0,                                              //Somma totale del numero di celle vuote per thread
+        *displs_unsatisfied = (int *)malloc(sizeof(int)*numproc),            //Displacements degli insoddisfatti per thread
+        *displs_freeslots = (int *)malloc(sizeof(int)*numproc),              //Displacements delle celle vuote per thread
+        *number_of_unsatisfied_per_th = (int *)malloc(sizeof(int)*numproc),  //Numero di insoddisfatti per thread
+        *number_of_freeslots_per_th = (int *)malloc(sizeof(int)*numproc),    //Numero di celle vuote per thread
         i=0;
     
     if(numproc>1){
         
         MPI_Allgather(&cellpos.n_unsatisfied, 1, MPI_INT, number_of_unsatisfied_per_th, 1, MPI_INT, MPI_COMM_WORLD);
-
+        
         MPI_Allgather(&cellpos.n_freeslots, 1, MPI_INT, number_of_freeslots_per_th, 1, MPI_INT, MPI_COMM_WORLD);
-
+        
         sum_number_freeslots = sum(number_of_freeslots_per_th, numproc);
 
-        int all_freeslots[sum_number_freeslots];            //Array di indici di tutte le celle vuote dell'intera matrice
-        char total_unsat_freeslots[sum_number_freeslots];   //Array di indici di celle insoddisfatte dell'intera matrice da randomizzare
+        int *all_freeslots = (int *)malloc(sizeof(int)*sum_number_freeslots);            //Array di indici di tutte le celle vuote dell'intera matrice
+        char *total_unsat_freeslots = (char *)malloc(sizeof(char)*sum_number_freeslots);   //Array di indici di celle insoddisfatte dell'intera matrice da randomizzare
         
         for(i=0; i<numproc; i++){
             if(i==0){
@@ -270,8 +271,9 @@ void displacements_step(Info_submatrix t_mat, int myrank, int numproc, Info_cell
         }
 
         MPI_Allgatherv(cellpos.freeslots, cellpos.n_freeslots, MPI_INT, all_freeslots, number_of_freeslots_per_th, displs_freeslots, MPI_INT, MPI_COMM_WORLD);
+        
         MPI_Allgatherv(cellpos.unsatisfied, cellpos.n_unsatisfied, MPI_CHAR, total_unsat_freeslots, number_of_unsatisfied_per_th, displs_unsatisfied, MPI_CHAR, MPI_COMM_WORLD);
-
+        
         //Prima di randomizzare l'array di celle insoddisfatte, viene riempito con ' ' (celle vuote) per far coincidere la size dell'array 
         //con il numero di celle vuote totali
         for(i=unsatisfied; i<sum_number_freeslots; i++) total_unsat_freeslots[i]=' ';
@@ -310,10 +312,14 @@ void displacements_step(Info_submatrix t_mat, int myrank, int numproc, Info_cell
 
         //Vengono sostituiti i valori nei freeslots delle varie sottomatrici con i valori delle sezioni di total_unsatisfied in funzione del proprio rank 
         for(i=0;i<cellpos.n_freeslots;i++) t_mat.submatrix[cellpos.freeslots[i]]=total_unsat_freeslots[displs_freeslots[myrank]+i];
+
+        free(all_freeslots);
+        free(total_unsat_freeslots);          
+        
     }
     else{
         //UN SOLO PROCESSO
-        char total_unsat_freeslots[cellpos.n_freeslots];
+        char *total_unsat_freeslots = (char *)malloc(sizeof(char)*cellpos.n_freeslots);
         for(i=0;i<cellpos.n_freeslots;i++) 
             if(i<cellpos.n_unsatisfied) total_unsat_freeslots[i]=cellpos.unsatisfied[i];
             else total_unsat_freeslots[i]=' ';
@@ -322,8 +328,15 @@ void displacements_step(Info_submatrix t_mat, int myrank, int numproc, Info_cell
 
         for(i=0;i<cellpos.n_freeslots;i++)
             t_mat.submatrix[cellpos.freeslots[i]]=total_unsat_freeslots[i];
-
+        
+        free(total_unsat_freeslots);
     }
+
+    free(displs_freeslots);
+    free(displs_unsatisfied);
+    free(number_of_unsatisfied_per_th);
+    free(number_of_freeslots_per_th);
+    
 }
 
 void swap (char *a, char *b)
@@ -634,7 +647,7 @@ Info_cellpositions satisfaction_step(Info_submatrix t_mat, int myrank, int numpr
         *satisfied = local_satisfied;
     }
     
-
+    
     return cellpos;
 }
 
@@ -746,10 +759,13 @@ _Bool calc_center(Info_submatrix mat, int index, int myrank){
 void create_matrix(char* mat, int E, int O, int X){
 
     int i, val_rand=0;
+    float seed;
     //Seed per funzione di rand()
     time_t now = time(NULL);
     struct tm *tm_struct = localtime(&now);
-    srand ( localtime(&now)->tm_sec );
+    if(SEED) seed=1;
+    else seed=localtime(&now)->tm_sec;
+    srand ( seed );
 
     for(i=0; i<ROWS*COLUMNS; i++){
         val_rand=rand()%3;

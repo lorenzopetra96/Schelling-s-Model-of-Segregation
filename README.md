@@ -20,9 +20,9 @@ ___
   - [_Ricomposizione Matrice_](#ricomposizione-matrice)
   - [_Stampa dei risultati_](#stampa-dei-risultati)
 
- - [**Note sull'implementazione**](#note_sullimplementazione)
-  - [_Compilazione_](#compilazione)
-  - [_Esecuzione_](#esecuzione)
+ - [**Note sull'implementazione**](#note-sullimplementazione)
+   - [_Compilazione_](#compilazione)
+   - [_Esecuzione_](#esecuzione)
 
 - [**Benchmarks**](#benchmarks)
 
@@ -218,7 +218,7 @@ dove
 float similarity = PERC_SIM*N; //Grado di soddisfazione 
 ```
 
-> Il valore **PERC_SIM** è la percentuale di soddisfazione fissata prima della fase di compilazione ([**Note sull'implementazione**](#note_implementazione))
+> _Note_: Il valore **PERC_SIM** è la percentuale di soddisfazione che viene fissata prima della fase di compilazione ([**Note sull'implementazione**](#note-sullimplementazione)).
 > Il valore **N** varia a seconda della posizione della cella: 
 > - 3 per cella angolo 
 > - 5 per cella cornice
