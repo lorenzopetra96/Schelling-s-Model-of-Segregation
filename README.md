@@ -427,7 +427,7 @@ I requisiti di successo per quanto riguarda la compilazione e di conseguenza anc
 Per effettuare la fase di esecuzione del codice, una volta generato il file _.out_ durante la fase di compilazione è possibile eseguirlo con il seguente comando:
 
 ```c
-mpirun --allow-run-as-root -np _**N**_ prog
+mpirun --allow-run-as-root -np N prog
 ```
 > _**N**_ rappresenta il numero di processi
 ___
