@@ -25,6 +25,8 @@ ___
    - [_Esecuzione_](#esecuzione)
 
 - [**Benchmarks**](#benchmarks)
+   - [_Strong Scalability_](#strong-scalability)
+   - [_Weak Scalability_](#weak-scalability)
 
 - [**Correttezza**](#correttezza)
 
@@ -412,17 +414,128 @@ Inoltre, prima di effettuare la compilazione, è importante settare i valori uti
 ```
 
 ### _Compilazione_
+Una volta settati tutti i parametri è possibile effettuare la fase di compilazione del codice con il seguente comando:
+
+```c
+mpicc -o prog prog.c
+```
+I requisiti di successo per quanto riguarda la compilazione e di conseguenza anche l'esecuzione del codice sono l'installazione di:
+- Ubuntu Linux 18.04 LTS
+- OpenMPI
 
 ### _Esecuzione_
+Per effettuare la fase di esecuzione del codice, una volta generato il file _.out_ durante la fase di compilazione è possibile eseguirlo con il seguente comando:
 
+```c
+mpirun --allow-run-as-root -np _**N**_ prog
+```
+> _**N**_ rappresenta il numero di processi
 ___
 ## Benchmarks
-bench
+In fase di Benchmarking è stata misurata la scalabilità del programma in termini delle due nozioni principali di High Performance Computing, cioè _Strong Scalability_ e _Weak Scalability_. I test sono stati effettuati su un cluster di quattro macchine con sistema operativo _Ubuntu Linux 18.04 LTS_, della famiglia _t2.xlarge_ con _16GB di memoria_ e _4 vCPU_ ognuna. 
+I risultati verranno esaminati nelle conclusioni finali.
+
+### _Strong Scalability_
+La Strong Scalability può essere definita come il modo in cui il tempo di computazione varia, nella risoluzione di un problema di dimensione fissata, al variare del numero di processori. 
+Questo permette di capire, da un lato, di quanto varia il tempo di computazione di un programma aumentando la parte di codice in parallelo rispetto a quella sequenziale e, dall'altro lato, qual è il limite superiore di processi coinvolti oltre il quale si rischia di estendere i tempi di calcolo a causa dell'overhead parallelo. 
+Per definizione, la misurazione deve essere effettuata in base ad una dimensione fissata del problema calcolato da un numero variabile di processi. Per questo motivo è stato scelto di testare l'efficienza della Strong Scalability in funzione di una [formula](https://www.sharcnet.ca/help/index.php/Measuring_Parallel_Scaling_Performance):
+
+- _t1_ / (_N_ * _tN_) * _100%_
+> _**t1**_ = tempo di computazione di un singolo processo
+
+> _**N**_ = numero processi coinvolti
+
+> _**tN**_ = tempo di computazione di _N_ processi
+
+#### _**Test-1 K/2 (2500x2000)**_
+| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza*** |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 2500 | 2000 | 1 | 12,613839 | 12,620761 | 12,610214 | 100% |
+| 2500 | 2000 | 2 | 6,646243 | 6,644074 | 6,629937 | 94,97%|
+| 2500 | 2000 | 4 | 4,477803 | 4,455112 | 4,467496 | 70,46% |
+| 2500 | 2000 | 6 | 6,948272 | 6,7789 | 6,839108 | 30,27% |
+| 2500 | 2000 | 8 | 7,328779 | 7,323284 | 7,192262 | 21,52% |
+| 2500 | 2000 | 10 | 8,793001 | 8,318929 | 8,563753 | 14,35% |
+| 2500 | 2000 | 12 | 8,147662 | 7,754639 | 8,234876 | 12,77% |
+| 2500 | 2000 | 14 | 6,92885 | 7,097258 | 6,946975 | 12,70% |
+| 2500 | 2000 | 16 | 8,136461 | 7,871201 | 8,091794 | 9,69% |
+
+> *_Per il calcolo dell'efficienza sono stati presi in considerazione i tempi peggiori_
+
+
+#### _**Test-2 K (5000x2000)**_
+| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza*** |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 5000 | 2000 | 1 | 22,807374 | 22,706562 | 22,817516 | 100% |
+| 5000 | 2000 | 2 | 15,707718 | 15,737176 | 15,815975 | 72,13% |
+| 5000 | 2000 | 4 | 9,697376 | 9,660594 | 9,675218 | 58,82% |
+| 5000 | 2000 | 6 | 14,07761 | 13,323792 | 13,267828 | 27,01% |
+| 5000 | 2000 | 8 | 19,111812 | 18,422374 | 20,341324 | 14,02% |
+| 5000 | 2000 | 10 | 15,792132 | 15,734468 | 15,559272 | 14,44% |
+| 5000 | 2000 | 12 | 18,217392 | 18,031201 | 17,311761 | 10,43% |
+| 5000 | 2000 | 14 | 14,850863 | 14,927343 | 14,749345 | 10,91% |
+| 5000 | 2000 | 16 | 16,271422 | 15,993416 | 15,966075 | 8,76% |
+
+> *_Per il calcolo dell'efficienza sono stati presi in considerazione i tempi peggiori_
+
+
+#### _**Test-3 2K (10000x2000)**_
+| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza*** |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 10000 | 2000 | 1 | 49,179175 | 49,347264 | 49,205463 | 100% |
+| 10000 | 2000 | 2 | 35,39052 | 35,373937 | 35,464182 | 69,57% |
+| 10000 | 2000 | 4 | 21,200705 | 21,17713 | 21,258909 | 58,03% |
+| 10000 | 2000 | 6 | 32,048546 | 30,198325 | 30,616614 | 25,66% |
+| 10000 | 2000 | 8 | 33,514537 | 32,541497 | 33,063533 | 18,40% |
+| 10000 | 2000 | 10 | 37,897307 | 38,500395 | 37,473097 | 12,81% |
+| 10000 | 2000 | 12 | 34,740301 | 34,479201 | 35,489891 | 11,58% |
+| 10000 | 2000 | 14 | 32,819148 | 32,225567 | 32,608265 | 10,74% |
+| 10000 | 2000 | 16 | 32,937963 | 33,445424 | 33,151032 | 9,22% |
+
+> *_Per il calcolo dell'efficienza sono stati presi in considerazione i tempi peggiori_
+
+
+### _Weak Scalability_
+Descrizione Weak Scalability
+
+| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza*** |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 2000 | 2000 | 1 | 8,607591 | 8,625888 | 8,645915 | 100% |
+| 4000 | 2000 | 2 | 12,138668 | 12,213413 | 12,202741 | 70,79% |
+| 6000 | 2000 | 4 | 12,581904 | 12,588319 | 12,614354 | 68,54% |
+| 8000 | 2000 | 6 | 22,022071 | 21,743886 | 22,085999 | 39,14% |
+| 10000 | 2000 | 8 | 32,980166 | 31,744703 | 32,340681 | 26,21% |
+| 12000 | 2000 | 10 | 40,823197 | 39,834169 | 40,741302 | 21,17% |
+| 14000 | 2000 | 12 | 49,732282 | 51,737642 | 51,075773 | 16,71% |
+| 16000 | 2000 | 14 | 59,512686 | 57,37106 | 58,915781 | 14.52% |
+| 18000 | 2000 | 16 | 69,99322 | 68,117497 | 69,723649 | 12,35% |
+
+> *_Per il calcolo dell'efficienza sono stati presi in considerazione i tempi peggiori_
 ___
 
 ## Correttezza
-Correttezza: dimostrare che due esecuzioni con 4 processori e 4 processori con lo stesso seed per la funzione di random nella costruzione della matrice, generano lo stesso output. 
+Per verificare la correttezza del codice la soluzione migliore sarebbe quella di valutare le operazioni che vengono effettuate sui singoli agenti della matrice da parte di ognuno dei processi ma, siccome viene utilizzato un generatore pseudocasuale di valori per le posizioni degli agenti insoddisfatti, è impossibile prevedere gli spostamenti che vengono fatti. Per questo motivo, la soluzione più valida potrebbe essere quella di dimostrare che due esecuzioni del codice con funzione di randomizzazione settata su un seed predefinito a parità di processi, generano lo stesso output, quindi la stessa matrice risultante. 
+
+Di seguito è riportato il test su 2, 4 e 6 processi con seed della funzione di randomizzazione fissato a 1, taglia matrice 40x40 (30% celle vuote, restante parte divisa in parti uguali tra valori X e valori O) e percentuale di soddisfazione al 30%.
+
+_**2 Processi**_
+
+| _Test 1_ | _Test 2_ |
+|--- | --- |
+| ![correttezza_uno_uno](./media/Correttezza1.1.png) | ![correttezza_uno_due](./media/Correttezza1.2.png) |
+
+_**4 Processi**_
+
+| _Test 1_ | _Test 2_ |
+|--- | --- |
+| ![correttezza_due_uno](./media/Correttezza2.1.png) | ![correttezza_due_due](./media/Correttezza2.2.png) |
+
+_**6 Processi**_
+
+| _Test 1_ | _Test 2_ |
+|--- | --- |
+| ![correttezza_tre_uno](./media/Correttezza3.1.png) | ![correttezza_tre_due](./media/Correttezza3.2.png) |
 ___
 
 ## Conclusioni
-Conclusioni
+Conclusioni e descrizione risultati benchmark

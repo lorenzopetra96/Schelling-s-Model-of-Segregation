@@ -4,8 +4,8 @@
 #include "mpi.h"
 #include <time.h>
 
-#define COLUMNS 2000              //Numero Colonne             
-#define ROWS 18000                 //Numero Righe
+#define COLUMNS 20              //Numero Colonne             
+#define ROWS 10                 //Numero Righe
 #define N_ROUND_MAX 100         //Numero Round Massimi
 #define PERC_O 0.5              //Percentuale di 'O'
 #define PERC_X (1-PERC_O)       //Percentuale di 'X'
@@ -13,8 +13,8 @@
 #define PERC_SIM 0.3            //Percentuale di soddisfazione
 #define DELAY 0                 //Delay di attesa per round
 #define PRINT_ROUNDS 0          //'1' se si vuole stampare la matrice risultante ad ogni round
-#define PERFORMANCE 1           //'1' se si vuole calcolare matrice risultante senza stampe a favore delle prestazioni
-#define SEED 1                  //'1' per effettuare test sulla stessa matrice
+#define PERFORMANCE 0           //'1' se si vuole calcolare matrice risultante senza stampe a favore delle prestazioni
+#define SEED 0                  //'1' per effettuare test sulla stessa matrice
 
 typedef struct{
     //Sottomatrice assegnata ad ogni thread 
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]){
     double start, end;
     char *mat, *final_mat;
     Info_submatrix t_mat;
-    //Info_cellpositions cellpos;
+    Info_cellpositions cellpos;
 
     //Definizione seed per creazione randomica della matrice
     time_t now = time(NULL);
@@ -113,7 +113,6 @@ int main(int argc, char *argv[]){
         start = MPI_Wtime();
 
         while(round<=N_ROUND_MAX){
-            Info_cellpositions cellpos;
             cellpos.unsatisfied = (char *)malloc(sizeof(char)*t_mat.scounts_gather[myrank]); 
             cellpos.freeslots = (int *)malloc(sizeof(int)*t_mat.scounts_gather[myrank]);
             
@@ -186,7 +185,12 @@ int main(int argc, char *argv[]){
             }
             printf("\n\n\tMATRIX SIZE: %dx%d \n\n\tSIMILAR: %d%%\n\n\tRED/BLUE: %d%%/%d%%\n\n\tEMPTY: %d%% \n\n\tTIME PASSED: %f \n\n\tSATISFIED: %d/%d\n\n\tPERC SATISFIED: %.1f %%\n\n\tROUNDS: %d/%d\n\n\n", ROWS, COLUMNS, (int)(PERC_SIM*100),(int)(PERC_O*100), (int)(PERC_X*100), (int)(PERC_E*100),end-start, satisfied, (ROWS*COLUMNS-E),((float)satisfied*100)/(float)(ROWS*COLUMNS-E), round, N_ROUND_MAX);
         }
-	}else{
+
+        free(t_mat.submatrix);
+        free(mat);
+        free(final_mat);
+	
+    }else{
         if(myrank==0) printf("\n\n\n\x1b[31mPlease enter fewer processes than %d (ROWS NUMBER) \x1b[0m\n\n\n\n\n", ROWS);
     }
 
@@ -196,9 +200,6 @@ int main(int argc, char *argv[]){
     free(t_mat.displ_scatter);
     free(t_mat.scounts_gather);
     free(t_mat.scounts_scatter);
-    free(t_mat.submatrix);
-    free(mat);
-    free(final_mat);
 
 	return 0;
 }
