@@ -39,7 +39,9 @@ ___
 
 ### _Il modello di segregazione di Schelling_
 
-Nel 1971, l'economista americano Thomas Schelling creò un modello basato su agenti che suggeriva che anche il comportamento involontario potesse contribuire alla segregazione. Il suo modello di segregazione ha mostrato che anche quando gli individui (o "agenti") non si preoccupavano di essere circondati o vivere da agenti di una razza o un background economico diverso, avrebbero comunque scelto di separarsi dagli altri agenti nel tempo. Sebbene il modello sia abbastanza semplice, fornisce uno sguardo affascinante su come gli individui potrebbero auto-segregarsi, anche quando non hanno un desiderio esplicito di farlo.
+Nel 1971, l'economista americano Thomas Schelling creò un modello basato su agenti che evidenziava il fatto che la segregazione era anche risultato di comportamenti involontari. Più precisamente, il modello poneva la luce sulla possibilità che un individuo o agente potesse allontanarsi involontariamente dagli altri agenti nel tempo per motivi razziali, economici o sociali.
+
+Sebbene il modello sia abbastanza semplice, fornisce uno sguardo affascinante su come gli individui potrebbero auto-segregarsi, anche quando non hanno un desiderio esplicito di farlo.
 > _[Riferimenti](https://en.wikipedia.org/wiki/Schelling's_model_of_segregation)_
 
 
@@ -109,7 +111,7 @@ void create_matrix(char* mat, int E, int O, int X){
 ```
 
 ### _Distribuzione Matrice_
-Affinchè si distribuisca la matrice in maniera intelligente è importante andare a definire una struttura dati dedicata che permetta ad ogni processo di salvare la propria sottomatrice, gli indici e il numero di valori della sottomatrice con e senza righe supplementari utili per il calcolo della soddisfazione degli agenti.
+Affinchè si distribuisca la matrice in maniera intelligente è importante andare a definire una struttura dati dedicata che permetta ad ogni processo di salvare la propria sottomatrice e altri indici della stessa utili per il calcolo della soddisfazione degli agenti.
 
 
 ```c
@@ -291,7 +293,7 @@ MPI_Allgatherv(cellpos.freeslots, cellpos.n_freeslots, MPI_INT, all_freeslots, n
 MPI_Allgatherv(cellpos.unsatisfied, cellpos.n_unsatisfied, MPI_CHAR, total_unsat_freeslots, number_of_unsatisfied_per_th, displs_unsatisfied, MPI_CHAR, MPI_COMM_WORLD);
 ```
 
-Siccome il numero di celle vuote è maggiore o uguale al numero di celle insoddisfatte è importante riempire _**total_unsat_freeslots**_, che al momento contiene solo valori di agenti insoddisfatti, di celle vuote così da poterlo suddividere in sezioni, ognuna dedicata ad un processo. 
+Siccome il numero di celle vuote è maggiore o uguale al numero di celle insoddisfatte è importante riempire _**total_unsat_freeslots**_ (che al momento contiene solo valori di agenti insoddisfatti) di celle vuote così da poterlo suddividere in sezioni, ognuna dedicata ad un processo. 
 
 ```c
 //Prima di randomizzare l'array di celle insoddisfatte, viene riempito con ' ' (celle vuote) per far coincidere la size dell'array con il numero di celle vuote totali
@@ -550,3 +552,4 @@ _**6 Processi**_
 ___
 
 ## Conclusioni
+In conclusione si può affermare che la risoluzione del problema con l'utilizzo della programmazione distribuita ha portato ad ottimi risultati che sottolineano ancora il fatto di quanto le prestazioni possano migliorare sotto un tetto massimo di processori coinvolti grazie alla distribuzione del carico di lavoro. Inoltre, l'implementazione di un prototipo di modello coerente con quello sviluppato da T. Schelling ha permesso di capire gli intenti dell'economista statunitense e quindi potrebbe essere utilizzato come modello di riferimento per effettuare degli studi a riguardo.
