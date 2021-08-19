@@ -433,14 +433,13 @@ mpirun --allow-run-as-root -np N prog
 ___
 ## Benchmarks
 In fase di Benchmarking è stata misurata la scalabilità del programma in termini delle due nozioni principali di High Performance Computing, cioè _Strong Scalability_ e _Weak Scalability_. I test sono stati effettuati su un cluster di quattro macchine con sistema operativo _Ubuntu Linux 18.04 LTS_, della famiglia _t2.xlarge_ con _16GB di memoria_ e _4 vCPU_ ognuna. 
-I risultati verranno esaminati nelle conclusioni finali.
 
 ### _Strong Scalability_
 La Strong Scalability può essere definita come il modo in cui il tempo di computazione varia, nella risoluzione di un problema di dimensione fissata, al variare del numero di processori. 
-Questo permette di capire, da un lato, di quanto varia il tempo di computazione di un programma aumentando la parte di codice in parallelo rispetto a quella sequenziale e, dall'altro lato, qual è il limite superiore di processi coinvolti oltre il quale si rischia di estendere i tempi di calcolo a causa dell'overhead parallelo. 
+La misurazione di questo tipo di scalabilità permette di capire, da un lato, di quanto varia il tempo di computazione di un programma aumentando la parte di codice in parallelo rispetto a quella sequenziale e, dall'altro lato, qual è il limite superiore di processi coinvolti oltre il quale si rischia di estendere i tempi di calcolo a causa dell'overhead parallelo. 
 Per definizione, la misurazione deve essere effettuata in base ad una dimensione fissata del problema calcolato da un numero variabile di processi. Per questo motivo è stato scelto di testare l'efficienza della Strong Scalability in funzione di una [formula](https://www.sharcnet.ca/help/index.php/Measuring_Parallel_Scaling_Performance):
 
-- _t1_ / (_N_ * _tN_) * _100%_
+- (_t1_ / (_N_ * _tN_)) * _100%_
 > _**t1**_ = tempo di computazione di un singolo processo
 
 > _**N**_ = numero processi coinvolti
@@ -452,7 +451,7 @@ Per definizione, la misurazione deve essere effettuata in base ad una dimensione
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | 2500 | 2000 | 1 | 12,613839 | 12,620761 | 12,610214 | 100% |
 | 2500 | 2000 | 2 | 6,646243 | 6,644074 | 6,629937 | 94,97%|
-| 2500 | 2000 | 4 | 4,477803 | 4,455112 | 4,467496 | 70,46% |
+| 2500 | 2000 | 4 | 4,477803 | **4,455112** | 4,467496 | 70,46% |
 | 2500 | 2000 | 6 | 6,948272 | 6,7789 | 6,839108 | 30,27% |
 | 2500 | 2000 | 8 | 7,328779 | 7,323284 | 7,192262 | 21,52% |
 | 2500 | 2000 | 10 | 8,793001 | 8,318929 | 8,563753 | 14,35% |
@@ -468,7 +467,7 @@ Per definizione, la misurazione deve essere effettuata in base ad una dimensione
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | 5000 | 2000 | 1 | 22,807374 | 22,706562 | 22,817516 | 100% |
 | 5000 | 2000 | 2 | 15,707718 | 15,737176 | 15,815975 | 72,13% |
-| 5000 | 2000 | 4 | 9,697376 | 9,660594 | 9,675218 | 58,82% |
+| 5000 | 2000 | 4 | 9,697376 | **9,660594** | 9,675218 | 58,82% |
 | 5000 | 2000 | 6 | 14,07761 | 13,323792 | 13,267828 | 27,01% |
 | 5000 | 2000 | 8 | 19,111812 | 18,422374 | 20,341324 | 14,02% |
 | 5000 | 2000 | 10 | 15,792132 | 15,734468 | 15,559272 | 14,44% |
@@ -484,7 +483,7 @@ Per definizione, la misurazione deve essere effettuata in base ad una dimensione
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | 10000 | 2000 | 1 | 49,179175 | 49,347264 | 49,205463 | 100% |
 | 10000 | 2000 | 2 | 35,39052 | 35,373937 | 35,464182 | 69,57% |
-| 10000 | 2000 | 4 | 21,200705 | 21,17713 | 21,258909 | 58,03% |
+| 10000 | 2000 | 4 | 21,200705 | **21,17713** | 21,258909 | 58,03% |
 | 10000 | 2000 | 6 | 32,048546 | 30,198325 | 30,616614 | 25,66% |
 | 10000 | 2000 | 8 | 33,514537 | 32,541497 | 33,063533 | 18,40% |
 | 10000 | 2000 | 10 | 37,897307 | 38,500395 | 37,473097 | 12,81% |
@@ -496,7 +495,14 @@ Per definizione, la misurazione deve essere effettuata in base ad una dimensione
 
 
 ### _Weak Scalability_
-Descrizione Weak Scalability
+La Weak Scalability può essere definita come il modo in cui il tempo di computazione varia in funzione del numero di processori, per una dimensione del problema fissata per processore.
+La misurazione di questo tipo di scalabilità permette di capire quanto un programma è scalabile in funzione dell'aumento delle risorse richieste per processore. L'obiettivo è quello di avere dei tempi di esecuzione costanti con un aumento lineare della dimensione del problema.
+La misurazione deve essere effettuata in base ad un aumento fissato della dimensione del problema per il numero di processori coinvolti. Per questo motivo è stato scelto di testare l'efficienza della Weak Scalability in funzione di una [formula](https://www.sharcnet.ca/help/index.php/Measuring_Parallel_Scaling_Performance):
+
+- (_t1_ / _tN_) * _100%_
+> _**t1**_ = tempo di computazione di un singolo processo
+
+> _**tN**_ = tempo di computazione di _N_ processi
 
 | **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza*** |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -512,6 +518,12 @@ Descrizione Weak Scalability
 
 > *_Per il calcolo dell'efficienza sono stati presi in considerazione i tempi peggiori_
 ___
+
+### Risultati
+I risultati mostrati permettono di evidenziare i miglioramenti prestazionali che si possono avere con l'introduzione della programmazione parallela. Più precisamente, per quanto riguarda la Strong Scalability, è possibile notare nei tre test effettuati che il tempo migliore è stato ottenuto dall'esecuzione del programma da 4 processori sottolineando il fatto che la distribuzione del lavoro è stata svolta nel migliore dei modi. Purtroppo, con l'aumento dei processori coinvolti, c'è stato un notevole incremento della comunicazione parallela che ha portato ad aumentare i tempi di elaborazione.
+Anche riguardo la Weak Scalability sono stati ottenuti ottimi risultati, infatti i tempi di computazione rimangono lineari fino all'utilizzo di 4 processori per poi aumentare drasticamente. 
+In entrambi i casi si può dire che, in termini di tempi computazionali, la risoluzione del problema viene svolta al meglio da 4 processori mentre l'efficienza può essere attribuita all'utilizzo di 2 processori. 
+
 
 ## Correttezza
 Per verificare la correttezza del codice la soluzione migliore sarebbe quella di valutare le operazioni che vengono effettuate sui singoli agenti della matrice da parte di ognuno dei processi ma, siccome viene utilizzato un generatore pseudocasuale di valori per le posizioni degli agenti insoddisfatti, è impossibile prevedere gli spostamenti che vengono fatti. Per questo motivo, la soluzione più valida potrebbe essere quella di dimostrare che due esecuzioni del codice con funzione di randomizzazione settata su un seed predefinito a parità di processi, generano lo stesso output, quindi la stessa matrice risultante. 
@@ -538,4 +550,3 @@ _**6 Processi**_
 ___
 
 ## Conclusioni
-Conclusioni e descrizione risultati benchmark
