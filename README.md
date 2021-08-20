@@ -63,7 +63,7 @@ Per la risoluzione del problema è stato scelto di usare **```C```** come lingua
 ![diagramma](./media/diagramma_di_flusso.png)
 
 ### _Creazione Matrice_
-Per effettuare la generazione della matrice è importante andare a definire il numero preciso di _**X**_, _**O**_ e **'  '** (celle vuote). Questo viene calcolato tramite il prodotto tra righe, colonne e percentuale del valore.
+Per effettuare la generazione della matrice è importante andare a definire il numero preciso di _**X**_, _**O**_ e **'  '** (celle vuote). Questo viene calcolato tramite il prodotto tra righe, colonne e valore percentuale di presenza di agenti di un certo tipo.
 
 ```c
 int E = (ROWS*COLUMNS*PERC_E);
@@ -71,7 +71,7 @@ int O = (ROWS*COLUMNS-E)*PERC_O, X = (ROWS*COLUMNS-E)*PERC_X;
 if(ROWS*COLUMNS != (O+E+X)) E+=(ROWS*COLUMNS)-(O+E+X);
 ```
 
-Mediante la funzione _**create_matrix**_ è possibile generare una matrice di dimensioni fissate _**ROWSxCOLUMS**_ dove i valori delle celle sono scelti randomicamente tramite la funzione _**rand()**_ il cui seed viene fissato precedentemente in funzione del numero di secondi dell'ora locale. Ogniqualvolta viene inserito un valore, viene decrementato il suo contatore fino a riempire la matrice con le diverse categorie di agenti. 
+Mediante la funzione _**create_matrix**_ è possibile generare una matrice di dimensioni fissate _**ROWSxCOLUMS**_ dove i valori delle celle sono scelti randomicamente tramite la funzione _**rand()**_ il cui seed viene fissato precedentemente in funzione del numero di secondi dell'ora locale oppure tramite un valore fissato scelto dall'utente. Ogniqualvolta viene inserito un agente, viene decrementato il suo contatore fino a riempire la matrice con le diverse categorie di agenti. 
 
 ```c
 void create_matrix(char* mat, int E, int O, int X){
@@ -181,7 +181,7 @@ MPI_Scatterv(mat, t_mat.scounts_scatter, t_mat.displ_scatter, MPI_CHAR, t_mat.su
 ```
 
 ### _Calcolo soddisfazione_
-Il calcolo della soddisfazione degli agenti viene effettuato da _**satisfaction_step**_ che restituisce sia il numero di celle soddisfatte che una struttura dati dedicata alla memorizzazione di celle insoddisfatte e celle vuote, di seguito presentata.
+Il calcolo della soddisfazione degli agenti viene effettuato da _**satisfaction_step**_ che restituisce sia il numero di celle soddisfatte sia una struttura dati dedicata alla memorizzazione di celle insoddisfatte e celle vuote, di seguito presentata.
 
 ```c
 typedef struct{
@@ -217,7 +217,7 @@ Ad ognuna di queste funzioni verrà passata sia la propria sottomatrice che l'in
 ```c
 return (similar_cells>=similarity);
 ```
-dove
+dove similar_cells è il numero di celle vicine con lo stesso tipo di agente di quello in esame, mentre similarity rappresenta il grado di soddisfazione dato da: 
 ```c
 float similarity = PERC_SIM*N; //Grado di soddisfazione 
 ```
@@ -228,10 +228,6 @@ float similarity = PERC_SIM*N; //Grado di soddisfazione
 > - 5 per cella cornice
 > - 8 per cella centrale
 
-e 
-```c
-float similar_cells=0.0; //Numero di celle vicine simili alla cella in esame
-```
 
 Se il numero di celle vicine è maggiore o uguale al valore di similarity allora la cella in esame è soddisfatta e verrà restituito 1 come valore. 
 
@@ -449,7 +445,7 @@ Per definizione, la misurazione deve essere effettuata in base ad una dimensione
 > _**tN**_ = tempo di computazione di _N_ processi
 
 #### _**Test-1 K/2 (2500x2000)**_
-| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza*** |
+| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza** |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | 2500 | 2000 | 1 | 12,613839 | 12,620761 | 12,610214 | 100% |
 | 2500 | 2000 | 2 | 6,646243 | 6,644074 | 6,629937 | 94,97%|
@@ -465,7 +461,7 @@ Per definizione, la misurazione deve essere effettuata in base ad una dimensione
 
 
 #### _**Test-2 K (5000x2000)**_
-| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza*** |
+| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza** |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | 5000 | 2000 | 1 | 22,807374 | 22,706562 | 22,817516 | 100% |
 | 5000 | 2000 | 2 | 15,707718 | 15,737176 | 15,815975 | 72,13% |
@@ -481,7 +477,7 @@ Per definizione, la misurazione deve essere effettuata in base ad una dimensione
 
 
 #### _**Test-3 2K (10000x2000)**_
-| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza*** |
+| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza** |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | 10000 | 2000 | 1 | 49,179175 | 49,347264 | 49,205463 | 100% |
 | 10000 | 2000 | 2 | 35,39052 | 35,373937 | 35,464182 | 69,57% |
@@ -506,7 +502,7 @@ La misurazione deve essere effettuata in base ad un aumento fissato della dimens
 
 > _**tN**_ = tempo di computazione di _N_ processi
 
-| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza*** |
+| **Righe** | **Colonne** | **Threads** | **Tempo 1** | **Tempo 2** | **Tempo 3** | **Efficienza** |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | 2000 | 2000 | 1 | 8,607591 | 8,625888 | 8,645915 | 100% |
 | 4000 | 2000 | 2 | 12,138668 | 12,213413 | 12,202741 | 70,79% |
@@ -552,4 +548,4 @@ _**6 Processi**_
 ___
 
 ## Conclusioni
-In conclusione si può affermare che la risoluzione del problema con l'utilizzo della programmazione distribuita ha portato ad ottimi risultati che sottolineano ancora il fatto di quanto le prestazioni possano migliorare sotto un tetto massimo di processori coinvolti grazie alla distribuzione del carico di lavoro. Inoltre, l'implementazione di un prototipo di modello coerente con quello sviluppato da T. Schelling ha permesso di capire gli intenti dell'economista statunitense e quindi potrebbe essere utilizzato come modello di riferimento per effettuare degli studi a riguardo.
+In conclusione si pu\'o affermare che la risoluzione del problema con l'utilizzo della programmazione distribuita ha portato ad ottimi risultati che sottolineano ancora il fatto di quanto le prestazioni possano migliorare con l'uso di un determinato numero di processori grazie alla distribuzione del carico di lavoro. Inoltre, l'implementazione di un modello coerente con quello ideato da T. Schelling ha permesso di capire ancor di più gli intenti e le finalità dell'economista statunitense.
